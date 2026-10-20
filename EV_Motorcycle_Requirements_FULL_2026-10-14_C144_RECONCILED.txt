@@ -468,7 +468,7 @@ Maintenance/Vehicle Lock | Manager/Admin ตามสิทธิ์ | Manager �
 • Responsive สำหรับโทรศัพท์ แท็บเล็ต และคอมพิวเตอร์
 • แสดงเวลาข้อมูลล่าสุดอย่างเด่นชัด เพื่อไม่ให้ตำแหน่งหรือ State of Charge  ค้างดูเหมือน Realtime
 • แยกสถานะ Reserved / Pending Start / Active / Pending End / Completed ชัดเจน พร้อมสาเหตุที่เริ่มไม่ได้
-• คำขอเริ่มผ่านเว็บ/NFC ต้องได้รับการอนุมัติออนไลน์และยืนยันผู้ใช้อยู่ใกล้รถก่อน Motor Ready; ไม่ใช้ลำดับสวิตช์ OFF→ON (C-136–C-139)
+• คำขอเริ่มผ่านเว็บต้องได้รับการอนุมัติออนไลน์; คำขอผ่าน NFC ใช้ Signed Offline Manifest ได้เมื่อออฟไลน์ตาม C-145–C-149; ทั้งสองเส้นทางต้องยืนยันผู้ใช้อยู่ใกล้รถก่อน Motor Ready และไม่ใช้ลำดับสวิตช์ OFF→ON (C-136–C-139)
 • เมื่อปิดบัญชีไม่ได้ ให้บอกเหตุค้าง เช่น Reservation, Pending End หรือ Unsynced Records; ไม่ปิดโดยไม่แจ้งเหตุ
 • ไม่พัฒนาการดาวน์โหลดหรือส่งออกรายงาน Excel/CSV/PDF; แสดงรายงานเฉพาะบนเว็บไซต์ตาม C-071
 16  การบำรุงรักษา การอัปเดต และการคืนใช้งาน
@@ -667,7 +667,7 @@ C.1 หลักการสถาปัตยกรรมและ Session ท�
 
 C-001 [CONFIRMED] ระบบประกอบด้วยรถไฟฟ้าต้นแบบหนึ่งคัน; ESP32-S3 ดูแล NFC PN532, GPS ATGM336H, BMS, เงื่อนไขเริ่มรถ, เสียง, ข้อมูล Offline และ UART; Raspberry Pi 5 RAM 4GB ดูแลกล้อง, MPU6050, YOLO Segmentation และเป็น LTE/4G gateway เพียงตัวเดียว; Supabase Auth/PostgreSQL/Row Level Security (การกำหนดสิทธิ์เข้าถึงข้อมูลเป็นรายแถว) /Edge Functions/Realtime ดูแลบัญชีและ Session
 C-002 [CONFIRMED; REVISED BY C-145–C-149] การเริ่ม Session ใหม่ผ่าน Web ต้องมีสิทธิ์อนุมัติออนไลน์ที่ตรวจสอบได้เสมอ; NFC อนุญาตให้เริ่มแบบออฟไลน์ได้เฉพาะเมื่อ ESP32 มี Signed Offline Manifest ที่ยังไม่หมดอายุและตรวจสอบผ่าน; คำ Acknowledgment (ข้อความตอบกลับว่าได้รับคำสั่งหรือข้อมูลแล้ว) ของ UART ไม่ใช่หลักฐานว่ารถเริ่มทำงานจริง
-C-003 [CONFIRMED; REVISED BY C-136–C-149] เส้นทางออนไลน์สงวนสิทธิ์ขอเริ่มรถแบบ Atomic สูงสุด 5 นาที; รถหนึ่งคันมี Reservation/Active Session ได้ครั้งละหนึ่งราย; เส้นทาง NFC ออฟไลน์ใช้สิทธิ์ที่เซิร์ฟเวอร์ออกล่วงหน้าใน Signed Offline Manifest ซึ่งผูกกับรถและจำกัดอายุ; การเริ่มผ่านเว็บ/NFC ไม่ใช้สวิตช์ OFF→ON ต้องตรวจสิทธิ์เริ่มรถแยกจาก Approved และยืนยันความใกล้ก่อน Motor Ready
+C-003 [CONFIRMED; REVISED BY C-136–C-149] เส้นทางออนไลน์สงวนสิทธิ์ขอเริ่มรถแบบ Atomic สูงสุด 5 นาที; รถหนึ่งคันมี Reservation/Active Session ได้ครั้งละหนึ่งราย; เส้นทาง NFC ออฟไลน์ใช้สิทธิ์ที่เซิร์ฟเวอร์ออกล่วงหน้าใน Signed Offline Manifest ซึ่งผูกกับรถและจำกัดอายุ ไม่อ้างว่าเป็น Reservation แบบ Atomic ที่ตรวจบนเซิร์ฟเวอร์ขณะออฟไลน์; ทั้งสองเส้นทางไม่ใช้สวิตช์ OFF→ON ต้องตรวจสิทธิ์เริ่มรถแยกจาก Approved และยืนยันความใกล้ก่อน Motor Ready
 C-004 [CONFIRMED] ก่อนเริ่มต้องตรวจความนิ่ง คันเร่งเป็นศูนย์ BMS และเงื่อนไขบทบาท; ไม่เปิดมอเตอร์เองเมื่อกลับออนไลน์ และไม่ตัดกำลังรถที่กำลังวิ่งเพราะระบบเสริมขัดข้อง
 C-005 [CONFIRMED; แก้ไข 15 ต.ค. 2569] Student/Employee ต้องมี AI พร้อมและ Main Geofence ที่ตั้งค่าแล้วเหมือนกัน; Manager มีข้อยกเว้น AI และ Main Geofence แต่ไม่ข้ามเงื่อนไขความปลอดภัยหลัก; Admin ไม่ใช่บัญชีขับรถ
 C-006 [CONFIRMED] Pi รีสตาร์ตต้องประสาน Active Session เดิมกับ ESP32/Supabase ไม่สร้าง Session ใหม่เอง; กล้อง/AI คืนสู่สภาพพร้อมได้หลังตรวจสุขภาพและ Calibration; ข้อมูลเซนเซอร์หมดอายุต้องถูกปฏิเสธ
@@ -745,10 +745,10 @@ C-089 [CONFIRMED] การจำกัดสิทธิ์อัตโนม�
 
 C.7.1 NFC ออฟไลน์ด้วย Signed Offline Manifest (REV-2026-10-20-01)
 
-C-145 [CONFIRMED POLICY; PENDING IMPLEMENTATION/TEST] เมื่อออนไลน์ Supabase ออก Signed Offline Manifest ให้รถเป็นสิทธิ์แคชสำหรับ NFC โดยมีอายุสูงสุด 24 ชั่วโมง; Manifest รองรับทั้ง START และ RESUME ขณะออฟไลน์; การเริ่มผ่าน Web ยังคงต้องออนไลน์และห้ามนำ Manifest ไปใช้แทนการอนุมัติ Web
+C-145 [CONFIRMED POLICY; PENDING IMPLEMENTATION/TEST] เมื่อออนไลน์ Supabase ออก Signed Offline Manifest ให้รถเป็นสิทธิ์แคชสำหรับ NFC โดยมีอายุสูงสุด 24 ชั่วโมง; Manifest อนุญาต START และ RESUME ขณะออฟไลน์เท่านั้น ส่วน PAUSE และ END เป็นคำสั่งภายใน Offline Session เดิมที่ ESP32 อนุญาตจากเจ้าของ Session และเงื่อนไขความปลอดภัย ไม่ใช้ Manifest เป็นสิทธิ์ใหม่; การเริ่มผ่าน Web ยังคงต้องออนไลน์และห้ามนำ Manifest ไปใช้แทนการอนุมัติ Web
 C-146 [CONFIRMED POLICY; PENDING IMPLEMENTATION/TEST] Manifest ต้องผูกกับ vehicle_id และประกอบด้วย schema_version, manifest_id, manifest_version, issued_at, expires_at, card_ref ที่คำนวณจาก UID, account_id, allowed_actions, ช่วงเวลาสิทธิ์, key_id และลายเซ็นเซิร์ฟเวอร์; ESP32 ต้องตรวจลายเซ็น, รถที่ผูก, วันหมดอายุ และการป้องกัน rollback ก่อนเก็บแบบ atomic โดยมีสำเนา A/B; UID-only ยังคงมีความเสี่ยงถูกโคลน
-C-147 [CONFIRMED POLICY; PENDING IMPLEMENTATION/TEST] Offline START ทำได้เมื่อไม่มี Active/Pending Session อื่นในรถ, มีสิทธิ์ START ใน Manifest, มีหลักฐานตรวจสภาพรถตาม C-129/C-130 และผ่านเงื่อนไขหยุดนิ่ง/คันเร่งศูนย์/BMS/บทบาท/ความใกล้รถ; Offline RESUME ทำได้เฉพาะผู้ขับเดิมและ offline_session_id เดิมในสถานะ Pause/Lock เมื่อมีสิทธิ์ RESUME และผ่านความปลอดภัยใหม่; หาก Manifest หมดอายุระหว่างขับห้ามตัดมอเตอร์ทันที แต่หลัง Pause แล้วห้าม Resume จนกว่าจะได้สิทธิ์ใหม่; หากไม่มีเวลาที่เชื่อถือได้ให้ปฏิเสธ Start/Resume
-C-148 [CONFIRMED POLICY; PENDING IMPLEMENTATION/TEST] ESP32 ต้องบันทึก Offline Event ที่มี offline_session_id, event_id, ลำดับเหตุการณ์, manifest_id/manifest_version, card_ref, เวลา, คำสั่ง, ผลการตัดสิน และเหตุผล; เมื่อกลับมาออนไลน์ให้ส่งตามลำดับแบบ idempotent, ลบได้เมื่อได้รับ ACK เท่านั้น และเก็บเหตุขัดแย้งเป็น Audit/Conflict โดยไม่สร้าง Session ซ้ำ
+C-147 [CONFIRMED POLICY; PENDING IMPLEMENTATION/TEST] Offline START ทำได้เมื่อไม่มี Active/Pending Session อื่นในรถ, มีสิทธิ์ START ใน Manifest, มีหลักฐานตรวจสภาพรถตาม C-129/C-130 และผ่านเงื่อนไขหยุดนิ่ง/คันเร่งศูนย์/BMS/บทบาท/ความใกล้รถ; Backend ต้องออก START lease/entitlement ต่อรถแบบใช้ครั้งเดียวและ ESP32 ต้อง consume แบบ atomic เพื่อกันการเริ่มซ้ำบนตัวควบคุมเดียวกัน. หากมีอุปกรณ์ออฟไลน์มากกว่าหนึ่งตัวจนตรวจพร้อมกันไม่ได้ ให้เหตุการณ์ที่เซิร์ฟเวอร์รับรองก่อนเป็นผู้ชนะ ส่วนเหตุการณ์ถัดไปต้องถูกปฏิเสธ/ทำเครื่องหมาย Conflict และไม่สร้าง Session ซ้ำ; ห้ามอ้างว่าออฟไลน์รับประกัน mutual exclusion ข้ามตัวควบคุมได้. Offline RESUME ทำได้เฉพาะผู้ขับเดิมและ offline_session_id เดิมในสถานะ Pause/Lock เมื่อมีสิทธิ์ RESUME และผ่านความปลอดภัยใหม่; หาก Manifest หมดอายุระหว่างขับห้ามตัดมอเตอร์ทันที แต่หลัง Pause แล้วห้าม Resume จนกว่าจะได้สิทธิ์ใหม่; หากไม่มีเวลาที่เชื่อถือได้ให้ปฏิเสธ Start/Resume
+C-148 [CONFIRMED POLICY; PENDING IMPLEMENTATION/TEST] ESP32 ต้องบันทึก Offline Event ที่มี offline_session_id, event_id, ลำดับเหตุการณ์, manifest_id/manifest_version, card_ref, เวลา, คำสั่ง, ผลการตัดสิน และเหตุผล; PAUSE/END ต้องผูกกับเจ้าของ Offline Session เดิม, รถหยุดนิ่ง และผลความปลอดภัยในเครื่อง โดยไม่ต้องออก Manifest ใหม่; เมื่อกลับมาออนไลน์ให้ส่งตามลำดับแบบ idempotent, ลบได้เมื่อได้รับ ACK เท่านั้น, ให้ Server ตัดสิน Start lease/Session ที่ชนกันตามลำดับที่รับรองก่อน และเก็บเหตุขัดแย้งเป็น Audit/Conflict โดยไม่สร้าง Session ซ้ำ
 C-149 [CONFIRMED POLICY; PENDING IMPLEMENTATION/TEST] หากลายเซ็นผิด, Manifest หมดอายุ, ผูกกับรถผิดคัน, เป็นเวอร์ชันเก่า, ข้อมูลเสียหาย หรือคิวบันทึกไม่พร้อม ให้ปฏิเสธ Offline Start/Resume และไม่ใช้ UID whitelist ธรรมดาเป็นหลักฐานสิทธิ์; ห้ามตัดกำลังมอเตอร์ขณะรถกำลังเคลื่อนที่; การเก็บ Manifest/Event ต้องใช้ secure storage ตามความสามารถของฮาร์ดแวร์
 
 C.8 ปิดบัญชีและข้อมูลส่วนบุคคล
@@ -1042,10 +1042,10 @@ D.5 รายการตรวจสอบเพื่อส่งต่อง�
 | LOCKED/Available | แตะ NFC ที่มี START ใน Signed Offline Manifest ซึ่งผูกกับรถและยังไม่หมดอายุ; ไม่มี Session ค้าง; Safety/รถนิ่ง/คันเร่งศูนย์ผ่าน | สร้าง offline_session_id, เข้า Active Session และบันทึก Start Event ใน ESP32 |
 | Active Session (Offline) | เจ้าของ Session สั่ง Pause/Lock หลังยืนยันว่ารถหยุดนิ่ง | เข้า Pause/Lock ภายใน Session เดิม, Motor Ready ไม่พร้อมขับ และบันทึก Event |
 | Pause/Lock (Offline) | เจ้าของเดิมแตะ NFC ที่มี RESUME ใน Manifest เดิมซึ่งยังไม่หมดอายุ และ Safety/ความใกล้รถผ่าน | กลับสู่ Active Session เดิม; หาก Manifest หมดอายุหรือเงื่อนไขไม่ผ่านให้คง Pause/Lock |
-| Active/Pause (Offline) | เจ้าของสั่ง End และเงื่อนไขหยุดนิ่ง/ปิด Motor Ready ผ่าน | เข้า ENDED_PENDING_SYNC และรอส่ง Event เมื่อออนไลน์ |
+| Active/Pause (Offline) | เจ้าของ Offline Session เดิมสั่ง PAUSE หรือ END; ต้องมีรถหยุดนิ่งและผลความปลอดภัยผ่าน | PAUSE อยู่ใน Session เดิม; END เข้า ENDED_PENDING_SYNC และรอส่ง Event เมื่อออนไลน์; ไม่ต้องใช้ Manifest ใหม่และไม่เปิดสิทธิ์ให้ผู้ใช้ใหม่ |
 | ทุกสถานะ | Manifest หมดอายุ, ลายเซ็นผิด, Vehicle ID ไม่ตรง, rollback หรือเวลาที่เชื่อถือไม่ได้ | ปฏิเสธ Start/Resume ใหม่; ห้ามตัดกำลังมอเตอร์ที่กำลังเคลื่อนที่ |
 
-การกลับมาออนไลน์: ESP32 ส่ง Event ตามลำดับโดยใช้ event_id แบบ idempotent; เซิร์ฟเวอร์ตรวจความขัดแย้งและ ACK ก่อนให้ลบข้อมูลจากคิว; หลัง Sync สำเร็จให้รับ Manifest รุ่นล่าสุด. การหมดอายุของ Manifest ระหว่างขับไม่เปลี่ยน Active เป็นหยุดฉุกเฉิน แต่ห้าม Resume ใหม่หลัง Pause จนกว่าจะได้รับสิทธิ์ใหม่.
+การกลับมาออนไลน์: ESP32 ส่ง Event ตามลำดับโดยใช้ event_id แบบ idempotent; เซิร์ฟเวอร์ตรวจความขัดแย้งและ ACK ก่อนให้ลบข้อมูลจากคิว. หาก Start lease/Session ชนกันให้เหตุการณ์ที่เซิร์ฟเวอร์รับรองก่อนเป็นผู้ชนะ เหตุการณ์ที่เหลือเป็น Conflict ไม่สร้าง Session ซ้ำและต้องบันทึก Audit; หลัง Sync สำเร็จให้รับ Manifest รุ่นล่าสุด. การหมดอายุของ Manifest ระหว่างขับไม่เปลี่ยน Active เป็นหยุดฉุกเฉิน แต่ห้าม Resume ใหม่หลัง Pause จนกว่าจะได้รับสิทธิ์ใหม่.
 
 ### H.4 สถานะงานออกแบบและทดสอบที่ไม่ใช่มติยืนยันความสำเร็จ
 
@@ -1069,5 +1069,6 @@ D.5 รายการตรวจสอบเพื่อส่งต่อง�
 มติใหม่ของเจ้าของโครงการ: ให้ NFC ใช้งานได้แม้รถออฟไลน์ โดยใช้ Signed Offline Manifest ที่ Supabase ออกล่วงหน้าและ ESP32 ตรวจสอบเอง; รองรับทั้ง Offline Start และ Offline Resume ภายในอายุสิทธิ์สูงสุด 24 ชั่วโมง.
 - ปรับ C-002, C-003, C-026, C-129, C-130, C-136 และ C-142 ให้แยกเส้นทาง Web ที่ต้องออนไลน์ออกจากเส้นทาง NFC ที่ใช้ Manifest ออฟไลน์ได้ โดยไม่ลดเงื่อนไข Driving Permission, ความปลอดภัย, ความใกล้รถ หรือการยืนยัน Motor Ready.
 - เพิ่ม C-145–C-149 และ H.3.2: รูปแบบ Manifest, การผูกกับรถ/บัตร, allowed actions, การป้องกันลายเซ็นผิดและ rollback, state machine Start/Pause/Resume/End, offline event queue และ idempotent Sync.
+- ระบุให้ START ใช้ lease/entitlement ต่อรถแบบใช้ครั้งเดียวและ consume แบบ atomic; หากอุปกรณ์ออฟไลน์ชนกัน เหตุการณ์ที่ Server รับรองก่อนเป็นผู้ชนะ ส่วนเหตุการณ์ถัดไปเป็น Conflict/Audit โดยไม่สร้าง Session ซ้ำ; PAUSE/END เป็นคำสั่งภายใน Offline Session เดิม ไม่ต้องออก Manifest ใหม่.
 - กำหนดว่า Manifest มีอายุสูงสุด 24 ชั่วโมง, ต้องมีเวลาที่เชื่อถือได้, หมดอายุระหว่างขับไม่ตัดมอเตอร์ทันที และ UID-only ยังคงมีความเสี่ยงถูกโคลน.
 - การแก้ไขนี้เป็น policy/design baseline และยังไม่ใช่หลักฐานว่าพัฒนา ติดตั้ง ทดสอบ หรือได้รับอนุญาตใช้บนถนนสาธารณะแล้ว; รายการทดสอบยังอยู่ในสถานะ PENDING OFFLINE TEST.
