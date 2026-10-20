@@ -1,0 +1,384 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="SDECt6qulH3BXV6PEnGn">
+    <mxGraphModel dx="3121" dy="1703" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <UserObject label="" mermaidData="{&#xa;  &quot;data&quot;: &quot;flowchart LR\n\n  subgraph userLayer[\&quot;1. ผู้ใช้และช่องทางสั่งงาน\&quot;]\n    direction TB\n    student[\&quot;Student: ผู้ขับตามเวลา AI GPS และ Geofence\&quot;]\n    employee[\&quot;Employee: ผู้ขับตามเงื่อนไขที่กำหนด\&quot;]\n    manager[\&quot;Manager: ผู้ขับและดูแลงานปฏิบัติการ\&quot;]\n    admin[\&quot;Admin: จัดการระบบและไม่ใช่บัญชีผู้ขับ\&quot;]\n    channel[\&quot;Web หรือ NFC: Start Pause Resume End\&quot;]\n    student --&gt; channel\n    employee --&gt; channel\n    manager --&gt; channel\n    admin --&gt; channel\n  end\n\n  subgraph webLayer[\&quot;2. Responsive Web Application\&quot;]\n    direction TB\n    webApp[\&quot;Web App: Login Register Approval Pre-ride และคำสั่ง Session\&quot;]\n    userView[\&quot;My Trips: สถานะ ประวัติ การแจ้งเตือน และคำร้องทบทวน\&quot;]\n    operations[\&quot;Operations Dashboard: Vehicle GPS BMS AI Network และ Alerts\&quot;]\n    phoneGps[\&quot;Phone GPS: สำรองเฉพาะตรวจ Return Zone\&quot;]\n  end\n\n  subgraph cloudLayer[\&quot;3. Supabase Cloud\&quot;]\n    direction TB\n    authService[\&quot;Auth และ RLS: Identity Role Account Status และ Driving Permission\&quot;]\n    commandService[\&quot;Edge Functions: Online Authorization Signature Nonce TTL และ Anti-replay\&quot;]\n    sessionService[\&quot;Reservation และ Session Engine: Atomic Claim และ State Control\&quot;]\n    policyService[\&quot;Policy และ Safety Rules: Role Time AI GPS Geofence BMS และ Restrictions\&quot;]\n    realtimeService[\&quot;Realtime และ HTTPS APIs: Commands Status Telemetry และ Alerts\&quot;]\n    reviewService[\&quot;Alerts Notifications และ Review Workflow\&quot;]\n    privacyService[\&quot;Audit Privacy Retention Version History และ Deletion\&quot;]\n    systemDb[(\&quot;PostgreSQL: Users NFC Vehicles Reservations Sessions GPS BMS AI Events Commands และ Audit\&quot;)]\n  end\n\n  subgraph vehicleBoundary[\&quot;4. จุดเชื่อมต่อระบบบนรถ\&quot;]\n    vehicleGateway[\&quot;Raspberry Pi 4G Gateway: Vehicle API Client\&quot;]\n  end\n\n  channel --&gt;|\&quot;HTTPS\&quot;| webApp\n  webApp --&gt;|\&quot;Sign in\&quot;| authService\n  webApp --&gt;|\&quot;Session commands\&quot;| commandService\n  userView &lt;--&gt;|\&quot;History and notices\&quot;| realtimeService\n  operations &lt;--&gt;|\&quot;Live operations\&quot;| realtimeService\n  phoneGps -.-&gt;|\&quot;Return check\&quot;| policyService\n\n  authService --&gt;|\&quot;Identity and permission\&quot;| sessionService\n  commandService &lt;--&gt;|\&quot;Atomic transition\&quot;| sessionService\n  policyService --&gt;|\&quot;Eligibility result\&quot;| sessionService\n  sessionService &lt;--&gt;|\&quot;Session state\&quot;| systemDb\n  realtimeService &lt;--&gt;|\&quot;Status and telemetry\&quot;| systemDb\n  reviewService &lt;--&gt;|\&quot;Incidents and reviews\&quot;| systemDb\n  privacyService &lt;--&gt;|\&quot;Retention and audit\&quot;| systemDb\n\n  commandService &lt;--&gt;|\&quot;Signed commands and result\&quot;| vehicleGateway\n  realtimeService &lt;--&gt;|\&quot;Telemetry and events\&quot;| vehicleGateway\n\n  onlineRule[\&quot;กฎหลัก: การเริ่ม Session ใหม่ต้องออนไลน์เสมอ\&quot;]\n  singleUserRule[\&quot;กฎหลัก: รถหนึ่งคันมี Reservation หรือ Active Session ได้หนึ่งผู้ใช้\&quot;]\n  adminRule[\&quot;Admin จัดการบัญชี สิทธิ์ NFC Geofence และ OUT OF SERVICE แต่ห้ามข้าม Safety Interlock\&quot;]\n\n  sessionService -.-&gt; onlineRule\n  sessionService -.-&gt; singleUserRule\n  admin -.-&gt; adminRule\n\n  classDef actor fill:#FDF4FF,stroke:#E879F9,color:#701A75,stroke-width:1px\n  classDef web fill:#ECFEFF,stroke:#22D3EE,color:#164E63,stroke-width:2px\n  classDef cloud fill:#FFF7ED,stroke:#A78BFA,color:#4C1D95,stroke-width:2px\n  classDef database fill:#F5F3FF,stroke:#8B5CF6,color:#4C1D95,stroke-width:2px\n  classDef boundary fill:#ECFDF5,stroke:#34D399,color:#065F46,stroke-width:2px\n  classDef safety fill:#FFF1F2,stroke:#FB7185,color:#881337,stroke-width:2px\n\n  class student,employee,manager,admin,channel actor\n  class webApp,userView,operations,phoneGps web\n  class authService,commandService,sessionService,policyService,realtimeService,reviewService,privacyService cloud\n  class systemDb database\n  class vehicleGateway boundary\n  class onlineRule,singleUserRule,adminRule safety\n\n  style userLayer fill:#FDF4FF,stroke:#E879F9,stroke-width:1px\n  style webLayer fill:#ECFEFF,stroke:#22D3EE,stroke-width:1px\n  style cloudLayer fill:#FFF7ED,stroke:#FDBA74,stroke-width:1px\n  style vehicleBoundary fill:#ECFDF5,stroke:#34D399,stroke-width:1px\n\n  linkStyle default stroke:#475569,stroke-width:1.5px\n&quot;,&#xa;  &quot;config&quot;: null,&#xa;  &quot;version&quot;: &quot;12&quot;&#xa;}" id="AzqTb-FgPItPfBem4iZ7-1">
+          <mxCell connectable="0" parent="1" style="group;transparentBounds=1;editIcon=1;lockedGroup=0;groupPadding=10;" vertex="1">
+            <mxGeometry as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="4. จุดเชื่อมต่อระบบบนรถ" mermaidId="n:vehicleBoundary" mermaidBaseStyle="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#ECFDF5;strokeColor=#34D399;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="4. จุดเชื่อมต่อระบบบนรถ" id="AzqTb-FgPItPfBem4iZ7-2">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-1" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#ECFDF5;strokeColor=#34D399;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="159" width="200" x="2503" y="711" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Raspberry Pi 4G Gateway: Vehicle API Client" mermaidId="n:vehicleGateway" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFDF5;strokeColor=#34D399;fontColor=#065F46;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Raspberry Pi 4G Gateway: Vehicle API Client" id="AzqTb-FgPItPfBem4iZ7-3">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-2" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFDF5;strokeColor=#34D399;fontColor=#065F46;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="87" width="152" x="24" y="48" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="3. Supabase Cloud" mermaidId="n:cloudLayer" mermaidBaseStyle="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#FFF7ED;strokeColor=#FDBA74;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="3. Supabase Cloud" id="AzqTb-FgPItPfBem4iZ7-4">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-1" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#FFF7ED;strokeColor=#FDBA74;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="856" width="1048" x="1156" y="189" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Auth และ RLS: Identity Role Account Status และ Driving Permission" mermaidId="n:authService" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Auth และ RLS: Identity Role Account Status และ Driving Permission" id="AzqTb-FgPItPfBem4iZ7-5">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-4" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="129" width="152" x="24" y="502" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Edge Functions: Online Authorization Signature Nonce TTL และ Anti-replay" mermaidId="n:commandService" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Edge Functions: Online Authorization Signature Nonce TTL และ Anti-replay" id="AzqTb-FgPItPfBem4iZ7-6">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-4" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="150" width="152" x="24" y="681" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Reservation และ Session Engine: Atomic Claim และ State Control" mermaidId="n:sessionService" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Reservation และ Session Engine: Atomic Claim และ State Control" id="AzqTb-FgPItPfBem4iZ7-7">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-4" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="108" width="152" x="441" y="543" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Policy และ Safety Rules: Role Time AI GPS Geofence BMS และ Restrictions" mermaidId="n:policyService" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Policy และ Safety Rules: Role Time AI GPS Geofence BMS และ Restrictions" id="AzqTb-FgPItPfBem4iZ7-8">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-4" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="129" width="152" x="24" y="323" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Realtime และ HTTPS APIs: Commands Status Telemetry และ Alerts" mermaidId="n:realtimeService" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Realtime และ HTTPS APIs: Commands Status Telemetry และ Alerts" id="AzqTb-FgPItPfBem4iZ7-9">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-4" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="150" width="152" x="441" y="185" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Alerts Notifications และ Review Workflow" mermaidId="n:reviewService" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Alerts Notifications และ Review Workflow" id="AzqTb-FgPItPfBem4iZ7-10">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-4" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="87" width="152" x="441" y="48" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Audit Privacy Retention Version History และ Deletion" mermaidId="n:privacyService" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Audit Privacy Retention Version History และ Deletion" id="AzqTb-FgPItPfBem4iZ7-11">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-4" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF7ED;strokeColor=#A78BFA;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="108" width="152" x="441" y="385" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="PostgreSQL: Users NFC Vehicles Reservations Sessions GPS BMS AI Events Commands และ Audit" mermaidId="n:systemDb" mermaidBaseStyle="html=1;shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=10;strokeWidth=2;whiteSpace=wrap;fillColor=#F5F3FF;strokeColor=#8B5CF6;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="PostgreSQL: Users NFC Vehicles Reservations Sessions GPS BMS AI Events Commands และ Audit" id="AzqTb-FgPItPfBem4iZ7-12">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-4" style="html=1;shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=10;strokeWidth=2;whiteSpace=wrap;fillColor=#F5F3FF;strokeColor=#8B5CF6;fontColor=#4C1D95;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="233" width="144" x="880" y="251" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Identity and permission" mermaidId="e:authService-&gt;sessionService#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.49;targetPerimeterSpacing=4;" mermaidBaseValue="Identity and permission" id="AzqTb-FgPItPfBem4iZ7-13">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-4" source="AzqTb-FgPItPfBem4iZ7-5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.49;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-7">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="399" y="567" />
+                <mxPoint x="399" y="596" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Atomic transition" mermaidId="e:commandService-&gt;sessionService#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.36;entryX=0;entryY=0.69;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;" mermaidBaseValue="Atomic transition" id="AzqTb-FgPItPfBem4iZ7-14">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-4" source="AzqTb-FgPItPfBem4iZ7-6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.36;entryX=0;entryY=0.69;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-7">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="399" y="735" />
+                <mxPoint x="399" y="618" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Eligibility result" mermaidId="e:policyService-&gt;sessionService#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.29;targetPerimeterSpacing=4;" mermaidBaseValue="Eligibility result" id="AzqTb-FgPItPfBem4iZ7-15">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-4" source="AzqTb-FgPItPfBem4iZ7-8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.29;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-7">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="411" y="388" />
+                <mxPoint x="411" y="575" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Session state" mermaidId="e:sessionService-&gt;systemDb#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.29;entryX=0;entryY=0.77;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;" mermaidBaseValue="Session state" id="AzqTb-FgPItPfBem4iZ7-16">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-4" source="AzqTb-FgPItPfBem4iZ7-7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.29;entryX=0;entryY=0.77;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-12">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="623" y="575" />
+                <mxPoint x="623" y="545" />
+                <mxPoint x="850" y="545" />
+                <mxPoint x="850" y="431" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Status and telemetry" mermaidId="e:realtimeService-&gt;systemDb#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.64;entryX=0;entryY=0.41;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;" mermaidBaseValue="Status and telemetry" id="AzqTb-FgPItPfBem4iZ7-17">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-4" source="AzqTb-FgPItPfBem4iZ7-9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.64;entryX=0;entryY=0.41;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-12">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="623" y="281" />
+                <mxPoint x="623" y="314" />
+                <mxPoint x="838" y="314" />
+                <mxPoint x="838" y="346" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Incidents and reviews" mermaidId="e:reviewService-&gt;systemDb#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.23;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;" mermaidBaseValue="Incidents and reviews" id="AzqTb-FgPItPfBem4iZ7-18">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-4" source="AzqTb-FgPItPfBem4iZ7-10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.23;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-12">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="838" y="91" />
+                <mxPoint x="838" y="304" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Retention and audit" mermaidId="e:privacyService-&gt;systemDb#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.59;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;" mermaidBaseValue="Retention and audit" id="AzqTb-FgPItPfBem4iZ7-19">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-4" source="AzqTb-FgPItPfBem4iZ7-11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.59;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-12">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="838" y="439" />
+                <mxPoint x="838" y="389" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="2. Responsive Web Application" mermaidId="n:webLayer" mermaidBaseStyle="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="2. Responsive Web Application" id="AzqTb-FgPItPfBem4iZ7-20">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-1" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="653" width="223" x="696" y="170" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Web App: Login Register Approval Pre-ride และคำสั่ง Session" mermaidId="n:webApp" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#164E63;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Web App: Login Register Approval Pre-ride และคำสั่ง Session" id="AzqTb-FgPItPfBem4iZ7-21">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-20" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#164E63;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="129" width="152" x="24" y="500" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="My Trips: สถานะ ประวัติ การแจ้งเตือน และคำร้องทบทวน" mermaidId="n:userView" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#164E63;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="My Trips: สถานะ ประวัติ การแจ้งเตือน และคำร้องทบทวน" id="AzqTb-FgPItPfBem4iZ7-22">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-20" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#164E63;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="87" width="152" x="24" y="227" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Operations Dashboard: Vehicle GPS BMS AI Network และ Alerts" mermaidId="n:operations" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#164E63;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Operations Dashboard: Vehicle GPS BMS AI Network และ Alerts" id="AzqTb-FgPItPfBem4iZ7-23">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-20" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#164E63;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="129" width="152" x="24" y="48" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Phone GPS: สำรองเฉพาะตรวจ Return Zone" mermaidId="n:phoneGps" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#164E63;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Phone GPS: สำรองเฉพาะตรวจ Return Zone" id="AzqTb-FgPItPfBem4iZ7-24">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-20" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#ECFEFF;strokeColor=#22D3EE;fontColor=#164E63;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="87" width="152" x="24" y="364" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="1. ผู้ใช้และช่องทางสั่งงาน" mermaidId="n:userLayer" mermaidBaseStyle="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="1. ผู้ใช้และช่องทางสั่งงาน" id="AzqTb-FgPItPfBem4iZ7-25">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-1" style="html=1;whiteSpace=nowrap;strokeWidth=1;verticalAlign=top;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#000000;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="508" width="424" x="20" y="464" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Student: ผู้ขับตามเวลา AI GPS และ Geofence" mermaidId="n:student" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Student: ผู้ขับตามเวลา AI GPS และ Geofence" id="AzqTb-FgPItPfBem4iZ7-26">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-25" style="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="87" width="152" x="24" y="165" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Employee: ผู้ขับตามเงื่อนไขที่กำหนด" mermaidId="n:employee" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Employee: ผู้ขับตามเงื่อนไขที่กำหนด" id="AzqTb-FgPItPfBem4iZ7-27">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-25" style="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="24" y="301" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Manager: ผู้ขับและดูแลงานปฏิบัติการ" mermaidId="n:manager" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Manager: ผู้ขับและดูแลงานปฏิบัติการ" id="AzqTb-FgPItPfBem4iZ7-28">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-25" style="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="24" y="418" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Admin: จัดการระบบและไม่ใช่บัญชีผู้ขับ" mermaidId="n:admin" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Admin: จัดการระบบและไม่ใช่บัญชีผู้ขับ" id="AzqTb-FgPItPfBem4iZ7-29">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-25" style="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="67" width="152" x="24" y="48" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Web หรือ NFC: Start Pause Resume End" mermaidId="n:channel" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Web หรือ NFC: Start Pause Resume End" id="AzqTb-FgPItPfBem4iZ7-30">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-25" style="html=1;whiteSpace=wrap;strokeWidth=1;fillColor=#FDF4FF;strokeColor=#E879F9;fontColor=#701A75;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="87" width="152" x="248" y="228" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:student-&gt;channel#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.49;entryX=0;entryY=0.42;targetPerimeterSpacing=4;" mermaidBaseValue="" id="AzqTb-FgPItPfBem4iZ7-31">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-25" source="AzqTb-FgPItPfBem4iZ7-26" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.49;entryX=0;entryY=0.42;targetPerimeterSpacing=4;" target="AzqTb-FgPItPfBem4iZ7-30">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="206" y="208" />
+                <mxPoint x="206" y="265" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:employee-&gt;channel#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;entryX=0;entryY=0.57;targetPerimeterSpacing=4;" mermaidBaseValue="" id="AzqTb-FgPItPfBem4iZ7-32">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-25" source="AzqTb-FgPItPfBem4iZ7-27" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.5;entryX=0;entryY=0.57;targetPerimeterSpacing=4;" target="AzqTb-FgPItPfBem4iZ7-30">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="206" y="334" />
+                <mxPoint x="206" y="277" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:manager-&gt;channel#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.49;entryX=0;entryY=0.72;targetPerimeterSpacing=4;" mermaidBaseValue="" id="AzqTb-FgPItPfBem4iZ7-33">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-25" source="AzqTb-FgPItPfBem4iZ7-28" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.49;entryX=0;entryY=0.72;targetPerimeterSpacing=4;" target="AzqTb-FgPItPfBem4iZ7-30">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="218" y="451" />
+                <mxPoint x="218" y="290" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:admin-&gt;channel#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.61;entryX=0;entryY=0.27;targetPerimeterSpacing=4;" mermaidBaseValue="" id="AzqTb-FgPItPfBem4iZ7-34">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-25" source="AzqTb-FgPItPfBem4iZ7-29" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.61;entryX=0;entryY=0.27;targetPerimeterSpacing=4;" target="AzqTb-FgPItPfBem4iZ7-30">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="218" y="89" />
+                <mxPoint x="218" y="252" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="กฎหลัก: การเริ่ม Session ใหม่ต้องออนไลน์เสมอ" mermaidId="n:onlineRule" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF1F2;strokeColor=#FB7185;fontColor=#881337;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="กฎหลัก: การเริ่ม Session ใหม่ต้องออนไลน์เสมอ" id="AzqTb-FgPItPfBem4iZ7-35">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-1" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF1F2;strokeColor=#FB7185;fontColor=#881337;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="87" width="152" x="2254" y="685" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="กฎหลัก: รถหนึ่งคันมี Reservation หรือ Active Session ได้หนึ่งผู้ใช้" mermaidId="n:singleUserRule" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF1F2;strokeColor=#FB7185;fontColor=#881337;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="กฎหลัก: รถหนึ่งคันมี Reservation หรือ Active Session ได้หนึ่งผู้ใช้" id="AzqTb-FgPItPfBem4iZ7-36">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-1" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF1F2;strokeColor=#FB7185;fontColor=#881337;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="108" width="152" x="2254" y="811" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="Admin จัดการบัญชี สิทธิ์ NFC Geofence และ OUT OF SERVICE แต่ห้ามข้าม Safety Interlock" mermaidId="n:adminRule" mermaidBaseStyle="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF1F2;strokeColor=#FB7185;fontColor=#881337;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;" mermaidBaseValue="Admin จัดการบัญชี สิทธิ์ NFC Geofence และ OUT OF SERVICE แต่ห้ามข้าม Safety Interlock" id="AzqTb-FgPItPfBem4iZ7-37">
+          <mxCell parent="AzqTb-FgPItPfBem4iZ7-1" style="html=1;whiteSpace=wrap;strokeWidth=2;fillColor=#FFF1F2;strokeColor=#FB7185;fontColor=#881337;fontFamily=Recursive;fontSize=14;shadow=1;shadowColor=#000000;shadowOffsetX=4;shadowOffsetY=4;shadowBlur=0;shadowOpacity=6;labelWidth=120;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" vertex="1">
+            <mxGeometry height="150" width="152" x="494" y="462" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="HTTPS" mermaidId="e:channel-&gt;webApp#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.49;entryX=0;entryY=0.5;targetPerimeterSpacing=4;" mermaidBaseValue="HTTPS" id="AzqTb-FgPItPfBem4iZ7-38">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-30" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.49;entryX=0;entryY=0.5;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-21">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points" />
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Sign in" mermaidId="e:webApp-&gt;authService#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.36;entryX=0;entryY=0.5;targetPerimeterSpacing=4;" mermaidBaseValue="Sign in" id="AzqTb-FgPItPfBem4iZ7-39">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.36;entryX=0;entryY=0.5;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-5">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="929" y="717" />
+                <mxPoint x="949" y="717" />
+                <mxPoint x="949" y="736" />
+                <mxPoint x="1126" y="736" />
+                <mxPoint x="1126" y="756" />
+                <mxPoint x="1146" y="756" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Session commands" mermaidId="e:webApp-&gt;commandService#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.64;entryX=0;entryY=0.5;targetPerimeterSpacing=4;" mermaidBaseValue="Session commands" id="AzqTb-FgPItPfBem4iZ7-40">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.64;entryX=0;entryY=0.5;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-6">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="929" y="752" />
+                <mxPoint x="949" y="752" />
+                <mxPoint x="949" y="852" />
+                <mxPoint x="1126" y="852" />
+                <mxPoint x="1126" y="945" />
+                <mxPoint x="1146" y="945" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="History and notices" mermaidId="e:userView-&gt;realtimeService#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.64;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;" mermaidBaseValue="History and notices" id="AzqTb-FgPItPfBem4iZ7-41">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.64;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-9">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="929" y="440" />
+                <mxPoint x="949" y="440" />
+                <mxPoint x="949" y="455" />
+                <mxPoint x="1126" y="455" />
+                <mxPoint x="1126" y="470" />
+                <mxPoint x="1146" y="470" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Live operations" mermaidId="e:operations-&gt;realtimeService#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.35;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;" mermaidBaseValue="Live operations" id="AzqTb-FgPItPfBem4iZ7-42">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.5;entryX=0;entryY=0.35;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-9">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="929" y="283" />
+                <mxPoint x="949" y="283" />
+                <mxPoint x="949" y="355" />
+                <mxPoint x="1126" y="355" />
+                <mxPoint x="1126" y="427" />
+                <mxPoint x="1146" y="427" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Return check" mermaidId="e:phoneGps-&gt;policyService#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.49;entryX=0;entryY=0.5;targetPerimeterSpacing=4;" mermaidBaseValue="Return check" id="AzqTb-FgPItPfBem4iZ7-43">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-24" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.49;entryX=0;entryY=0.5;targetPerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-8">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points" />
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Signed commands and result" mermaidId="e:commandService-&gt;vehicleGateway#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.65;entryX=0;entryY=0.62;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;" mermaidBaseValue="Signed commands and result" id="AzqTb-FgPItPfBem4iZ7-44">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.65;entryX=0;entryY=0.62;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-3">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="2214" y="967" />
+                <mxPoint x="2234" y="967" />
+                <mxPoint x="2234" y="997" />
+                <mxPoint x="2473" y="997" />
+                <mxPoint x="2473" y="813" />
+                <mxPoint x="2493" y="813" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="Telemetry and events" mermaidId="e:realtimeService-&gt;vehicleGateway#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=16;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.35;entryX=0;entryY=0.37;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;" mermaidBaseValue="Telemetry and events" id="AzqTb-FgPItPfBem4iZ7-45">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;startArrow=block;startSize=8;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;html=1;fontSize=14;labelBackgroundColor=#cccccc;fontFamily=Recursive;fontColor=#28253D;exitX=1;exitY=0.35;entryX=0;entryY=0.37;targetPerimeterSpacing=4;sourcePerimeterSpacing=4;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DRecursive;" target="AzqTb-FgPItPfBem4iZ7-3">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="2214" y="427" />
+                <mxPoint x="2234" y="427" />
+                <mxPoint x="2234" y="501" />
+                <mxPoint x="2473" y="501" />
+                <mxPoint x="2473" y="791" />
+                <mxPoint x="2493" y="791" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:sessionService-&gt;onlineRule#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.49;entryX=0;entryY=0.49;targetPerimeterSpacing=4;" mermaidBaseValue="" id="AzqTb-FgPItPfBem4iZ7-46">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.49;entryX=0;entryY=0.49;targetPerimeterSpacing=4;" target="AzqTb-FgPItPfBem4iZ7-35">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="2214" y="785" />
+                <mxPoint x="2234" y="785" />
+                <mxPoint x="2234" y="728" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:sessionService-&gt;singleUserRule#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.69;entryX=0;entryY=0.5;targetPerimeterSpacing=4;" mermaidBaseValue="" id="AzqTb-FgPItPfBem4iZ7-47">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.69;entryX=0;entryY=0.5;targetPerimeterSpacing=4;" target="AzqTb-FgPItPfBem4iZ7-36">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="2214" y="807" />
+                <mxPoint x="2234" y="807" />
+                <mxPoint x="2234" y="865" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" mermaidId="e:admin-&gt;adminRule#0" mermaidBaseStyle="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.38;entryX=0;entryY=0.5;targetPerimeterSpacing=4;" mermaidBaseValue="" id="AzqTb-FgPItPfBem4iZ7-48">
+          <mxCell edge="1" parent="AzqTb-FgPItPfBem4iZ7-1" source="AzqTb-FgPItPfBem4iZ7-29" style="edgeStyle=orthogonalEdgeStyle;rounded=1;curved=0;dashed=1;dashPattern=2 2;fixDash=1;startArrow=none;endArrow=block;endSize=8;strokeColor=#475569;strokeWidth=1.5;jumpStyle=arc;jumpSize=12;exitX=1;exitY=0.38;entryX=0;entryY=0.5;targetPerimeterSpacing=4;" target="AzqTb-FgPItPfBem4iZ7-37">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points" />
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <mxCell id="AzqTb-FgPItPfBem4iZ7-49" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="&lt;font style=&quot;font-size: 48px;&quot;&gt;Software Block Diagram&lt;/font&gt;" vertex="1">
+          <mxGeometry height="30" width="2556" x="494" y="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
