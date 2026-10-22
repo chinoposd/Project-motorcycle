@@ -494,8 +494,6 @@ svg { flex: none; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
 
-.register-open-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 7px 11px; border: 1px solid rgba(255,255,255,.34); border-radius: 7px; color: #fff; background: rgba(255,255,255,.1); font-size: 11px; font-weight: 650; white-space: nowrap; }
-.register-open-button:hover { background: rgba(255,255,255,.18); }
 .register-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 32px; background: rgba(10, 32, 51, .68); backdrop-filter: blur(5px); }
 .register-dialog { position: relative; display: grid; width: min(1380px, 100%); height: min(840px, calc(100dvh - 64px)); max-height: 100%; grid-template-columns: minmax(0, 1.15fr) minmax(390px, .85fr); overflow: hidden; border: 1px solid rgba(255,255,255,.78); border-radius: 24px; background: var(--paper); box-shadow: 0 28px 90px rgba(7, 27, 45, .32); }
 .register-form-column { min-width: 0; overflow-y: auto; scrollbar-color: #a5b8c8 transparent; scrollbar-width: thin; }
@@ -554,7 +552,6 @@ svg { flex: none; }
 .register-mobile-close { display: none; }
 
 @media (max-width: 760px) {
-  .register-open-button { min-height: 31px; padding: 6px 8px; font-size: 10px; }
   .register-backdrop { display: block; padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .register-dialog { width: min(680px, 100%); height: auto; max-height: none; grid-template-columns: minmax(0, 1fr); overflow: visible; border-radius: 18px; }
   .register-form-column { overflow: visible; }
@@ -586,10 +583,6 @@ svg { flex: none; }
   .register-close { top: 12px; right: 12px; width: 34px; height: 34px; }
 }
 @media (max-width: 430px) {
-  .register-open-button span { display: inline; }
-  .register-open-button { min-height: 40px; padding: 7px 9px; font-size: 12px; }
-  .header-actions .register-open-button span { display: none; }
-  .header-actions .register-open-button { width: 40px; padding: 0; }
   .register-form-content { padding-right: 16px; padding-left: 16px; }
   .register-field-grid { gap: 15px; }
   .register-form { gap: 16px; }
