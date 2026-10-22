@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Bike, CircleHelp, LayoutDashboard, LockKeyhole, LogOut, Settings, UserRound, UsersRound } from 'lucide-react';
+import { Bike, CircleHelp, LayoutDashboard, LockKeyhole, LogOut, Settings, UserPlus, UserRound, UsersRound } from 'lucide-react';
 import { isPageAllowed, type DemoUser } from '../auth/demoAuth';
 import type { PageId } from '../types';
 
@@ -54,6 +54,10 @@ export default function AppShell({ page, onNavigate, onLogout, user, children }:
           </nav>
 
           <div className="header-actions">
+            <button className="register-open-button" type="button" aria-label="สมัครสมาชิก" title="สมัครสมาชิก" onClick={() => onNavigate('register')}>
+              <UserPlus size={16} aria-hidden="true" />
+              <span>สมัครสมาชิก</span>
+            </button>
             <button className="icon-button help-button" type="button" aria-label="คู่มือการใช้งาน" title="คู่มือการใช้งาน">
               <CircleHelp size={19} strokeWidth={1.9} />
             </button>

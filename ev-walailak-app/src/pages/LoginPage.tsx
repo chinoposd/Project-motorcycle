@@ -7,6 +7,7 @@ import {
   GraduationCap,
   LockKeyhole,
   Settings,
+  UserPlus,
   UsersRound,
 } from 'lucide-react';
 import {
@@ -19,6 +20,7 @@ import type { UserRole } from '../types';
 
 interface LoginPageProps {
   onLogin: (user: DemoUser) => void;
+  onRegister: () => void;
 }
 
 const roleIcons: Record<UserRole, typeof GraduationCap> = {
@@ -28,7 +30,7 @@ const roleIcons: Record<UserRole, typeof GraduationCap> = {
   Admin: Settings,
 };
 
-export default function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -136,6 +138,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
             <button className="login-submit" type="submit">เข้าสู่ระบบ</button>
           </form>
+
+          <button className="login-register-button" type="button" onClick={onRegister}>
+            <UserPlus size={17} aria-hidden="true" />
+            <span>ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก</span>
+          </button>
 
           <section className="demo-accounts" aria-labelledby="demo-accounts-heading">
             <div className="login-divider" aria-hidden="true" />

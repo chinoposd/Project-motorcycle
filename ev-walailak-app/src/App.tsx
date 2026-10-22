@@ -5,6 +5,7 @@ import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
 import ManagerPage from './pages/ManagerPage';
 import OverviewPage from './pages/OverviewPage';
+import RegisterPage from './pages/RegisterPage';
 import RidePage from './pages/RidePage';
 import { initialAlerts } from './data/mockData';
 import type { AlertRecord, ManagerView, PageId, SessionStatus } from './types';
@@ -12,6 +13,8 @@ import type { AlertRecord, ManagerView, PageId, SessionStatus } from './types';
 export default function App() {
   const [user, setUser] = useState<DemoUser | null>(() => readDemoSession());
   const [page, setPage] = useState<PageId>(() => user ? getLandingPage(user.role) : 'home');
+  const [pageBeforeRegister, setPageBeforeRegister] = useState<PageId>('home');
+  const [loginRegisterOpen, setLoginRegisterOpen] = useState(false);
   const [managerView, setManagerView] = useState<ManagerView>('overview');
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>('active');
   const [alerts, setAlerts] = useState<AlertRecord[]>(() => initialAlerts.map((item) => ({ ...item })));
@@ -44,7 +47,17 @@ export default function App() {
 
   function handleNavigate(nextPage: PageId) {
     if (!user) return;
+    if (nextPage === 'register') {
+      setPageBeforeRegister(page);
+      setPage('register');
+      return;
+    }
     setPage(isPageAllowed(user.role, nextPage) ? nextPage : getLandingPage(user.role));
+  }
+
+  function closeRegister() {
+    setPage(pageBeforeRegister);
+    setLoginRegisterOpen(false);
   }
 
   function handleStartPause() {
@@ -80,14 +93,24 @@ export default function App() {
     showToast('บันทึกการรับทราบ Alert แล้ว · ข้อมูลตัวอย่าง');
   }
 
-  if (!user) return <LoginPage onLogin={handleLogin} />;
+  if (!user) {
+    return (
+      <>
+        <LoginPage onLogin={handleLogin} onRegister={() => setLoginRegisterOpen(true)} />
+        {loginRegisterOpen && <RegisterPage onClose={closeRegister} />}
+      </>
+    );
+  }
+
+  const visiblePage = page === 'register' ? pageBeforeRegister : page;
 
   return (
-    <AppShell page={page} user={user} onNavigate={handleNavigate} onLogout={handleLogout}>
-      {page === 'home' && <OverviewPage sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
-      {page === 'ride' && <RidePage status={sessionStatus} onPauseResume={handleStartPause} onEnd={handleEndSession} onShowToast={showToast} />}
-      {page === 'manager' && <ManagerPage view={managerView} onViewChange={setManagerView} alerts={alerts} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
-      {page === 'admin' && <AdminPage onShowToast={showToast} />}
+    <AppShell page={visiblePage} user={user} onNavigate={handleNavigate} onLogout={handleLogout}>
+      {visiblePage === 'home' && <OverviewPage sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
+      {visiblePage === 'ride' && <RidePage status={sessionStatus} onPauseResume={handleStartPause} onEnd={handleEndSession} onShowToast={showToast} />}
+      {visiblePage === 'manager' && <ManagerPage view={managerView} onViewChange={setManagerView} alerts={alerts} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
+      {visiblePage === 'admin' && <AdminPage onShowToast={showToast} />}
+      {page === 'register' && <RegisterPage onClose={closeRegister} />}
       <div className={`toast${toast ? ' visible' : ''}`} role="status" aria-live="polite">{toast}</div>
     </AppShell>
   );
