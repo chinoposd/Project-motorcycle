@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import { clearDemoSession, getLandingPage, isPageAllowed, readDemoSession, writeDemoSession, type DemoUser } from './auth/demoAuth';
 import AppShell from './components/AppShell';
 import AdminPage from './pages/AdminPage';
+import LoginPage from './pages/LoginPage';
 import ManagerPage from './pages/ManagerPage';
 import OverviewPage from './pages/OverviewPage';
 import RidePage from './pages/RidePage';
@@ -8,7 +10,8 @@ import { initialAlerts } from './data/mockData';
 import type { AlertRecord, ManagerView, PageId, SessionStatus } from './types';
 
 export default function App() {
-  const [page, setPage] = useState<PageId>('home');
+  const [user, setUser] = useState<DemoUser | null>(() => readDemoSession());
+  const [page, setPage] = useState<PageId>(() => user ? getLandingPage(user.role) : 'home');
   const [managerView, setManagerView] = useState<ManagerView>('overview');
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>('active');
   const [alerts, setAlerts] = useState<AlertRecord[]>(() => initialAlerts.map((item) => ({ ...item })));
@@ -21,6 +24,28 @@ export default function App() {
     const timeout = window.setTimeout(() => setToast(''), 2600);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+
+  function handleLogin(nextUser: DemoUser) {
+    writeDemoSession(nextUser);
+    setUser(nextUser);
+    setPage(getLandingPage(nextUser.role));
+    setSessionStatus('active');
+    setToast('');
+  }
+
+  function handleLogout() {
+    clearDemoSession();
+    setUser(null);
+    setPage('home');
+    setManagerView('overview');
+    setSessionStatus('idle');
+    setToast('');
+  }
+
+  function handleNavigate(nextPage: PageId) {
+    if (!user) return;
+    setPage(isPageAllowed(user.role, nextPage) ? nextPage : getLandingPage(user.role));
+  }
 
   function handleStartPause() {
     if (sessionStatus === 'active') {
@@ -55,8 +80,10 @@ export default function App() {
     showToast('บันทึกการรับทราบ Alert แล้ว · ข้อมูลตัวอย่าง');
   }
 
+  if (!user) return <LoginPage onLogin={handleLogin} />;
+
   return (
-    <AppShell page={page} onNavigate={setPage}>
+    <AppShell page={page} user={user} onNavigate={handleNavigate} onLogout={handleLogout}>
       {page === 'home' && <OverviewPage sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
       {page === 'ride' && <RidePage status={sessionStatus} onPauseResume={handleStartPause} onEnd={handleEndSession} onShowToast={showToast} />}
       {page === 'manager' && <ManagerPage view={managerView} onViewChange={setManagerView} alerts={alerts} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
