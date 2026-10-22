@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Bike, CircleHelp, LayoutDashboard, LockKeyhole, Settings, UserRound, UsersRound } from 'lucide-react';
+import { Bike, CircleHelp, LayoutDashboard, LockKeyhole, LogOut, Settings, UserRound, UsersRound } from 'lucide-react';
+import { isPageAllowed, type DemoUser } from '../auth/demoAuth';
 import type { PageId } from '../types';
 
 const navItems: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
@@ -12,15 +13,21 @@ const navItems: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = 
 interface AppShellProps {
   page: PageId;
   onNavigate: (page: PageId) => void;
+  onLogout: () => void;
+  user: DemoUser;
   children: ReactNode;
 }
 
-export default function AppShell({ page, onNavigate, children }: AppShellProps) {
-  const identity = page === 'manager'
-    ? { initial: 'ผ', label: 'ผู้จัดการระบบ · Manager' }
-    : page === 'admin'
-      ? { initial: 'อ', label: 'ผู้ดูแลระบบ · Admin' }
-      : { initial: 'น', label: 'นภัส · Student' };
+const roleLabels = {
+  Student: 'นักศึกษา',
+  Employee: 'บุคลากร',
+  Manager: 'ผู้จัดการ',
+  Admin: 'ผู้ดูแลระบบ',
+} as const;
+
+export default function AppShell({ page, onNavigate, onLogout, user, children }: AppShellProps) {
+  const identity = { initial: user.name.slice(0, 1), label: `${user.name} · ${roleLabels[user.role]}` };
+  const visibleNavItems = navItems.filter(({ id }) => isPageAllowed(user.role, id));
 
   return (
     <div className="app-shell">
@@ -32,7 +39,7 @@ export default function AppShell({ page, onNavigate, children }: AppShellProps) 
           </a>
 
           <nav className="main-nav" aria-label="เมนูหลัก">
-            {navItems.map(({ id, label, icon: Icon }) => (
+            {visibleNavItems.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 type="button"
@@ -50,11 +57,14 @@ export default function AppShell({ page, onNavigate, children }: AppShellProps) 
             <button className="icon-button help-button" type="button" aria-label="คู่มือการใช้งาน" title="คู่มือการใช้งาน">
               <CircleHelp size={19} strokeWidth={1.9} />
             </button>
-            <div className="profile-chip" aria-label={identity.label}>
+            <div className="profile-chip" aria-label={`${identity.label} (${user.email})`}>
               <span className="avatar"><UserRound size={17} aria-hidden="true" /></span>
               <span className="profile-name">{identity.label}</span>
               <span className="profile-initial">{identity.initial}</span>
             </div>
+            <button className="icon-button logout-button" type="button" aria-label="ออกจากระบบ" title="ออกจากระบบ" onClick={onLogout}>
+              <LogOut size={17} strokeWidth={1.9} aria-hidden="true" />
+            </button>
           </div>
         </div>
       </header>
