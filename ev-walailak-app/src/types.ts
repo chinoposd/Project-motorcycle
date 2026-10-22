@@ -1,4 +1,4 @@
-export type PageId = 'home' | 'ride' | 'manager' | 'admin';
+export type PageId = 'home' | 'ride' | 'manager' | 'admin' | 'register';
 export type ManagerView = 'overview' | 'ride';
 export type SessionStatus = 'idle' | 'active' | 'paused';
 export type AlertSeverity = 'high' | 'warning' | 'info';

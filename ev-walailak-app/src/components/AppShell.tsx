@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Bike, CircleHelp, LayoutDashboard, LockKeyhole, Settings, UserRound, UsersRound } from 'lucide-react';
+import { Bike, CircleHelp, LayoutDashboard, LockKeyhole, Settings, UserPlus, UserRound, UsersRound } from 'lucide-react';
 import type { PageId } from '../types';
 
 const navItems: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
@@ -47,6 +47,10 @@ export default function AppShell({ page, onNavigate, children }: AppShellProps) 
           </nav>
 
           <div className="header-actions">
+            <button className="register-open-button" type="button" onClick={() => onNavigate('register')}>
+              <UserPlus size={16} aria-hidden="true" />
+              <span>สมัครสมาชิก</span>
+            </button>
             <button className="icon-button help-button" type="button" aria-label="คู่มือการใช้งาน" title="คู่มือการใช้งาน">
               <CircleHelp size={19} strokeWidth={1.9} />
             </button>
