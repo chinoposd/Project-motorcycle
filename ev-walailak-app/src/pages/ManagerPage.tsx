@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Activity, AlertTriangle, BatteryMedium, Check, Phone, ShieldAlert, ShieldCheck, Wrench } from 'lucide-react';
 import CampusMap from '../components/CampusMap';
 import PageHeader from '../components/PageHeader';
+import SessionWorkflow from '../components/SessionWorkflow';
 import VehiclePanel from '../components/VehiclePanel';
-import { initialAlerts, systemHealth } from '../data/mockData';
+import { systemHealth } from '../data/mockData';
 import type { AlertRecord, ManagerView, SessionStatus } from '../types';
 
 interface ManagerPageProps {
@@ -42,20 +43,13 @@ export default function ManagerPage({ view, onViewChange, alerts, onAcknowledge,
         </div>
       ) : (
         <>
-          <section className="manager-summary" aria-label="สรุปสถานะการปฏิบัติงาน">
-            <div className="summary-item good"><span>การเชื่อมต่อรถ</span><strong>ออนไลน์</strong><small>ล่าสุด {initialAlerts[1].time.replace(' น.', '')}</small></div>
-            <div className={`summary-item ${sessionStatus === 'active' ? 'good' : 'neutral'}`}><span>สถานะรถ</span><strong>{sessionStatus === 'active' ? 'กำลังใช้งาน' : sessionStatus === 'paused' ? 'พักชั่วคราว' : 'พร้อมให้บริการ'}</strong><small>{sessionStatus === 'active' ? 'Active Session' : 'ไม่มี Session ที่เปิดอยู่'}</small></div>
-            <div className="summary-item good"><span>แบตเตอรี่</span><strong>74%</strong><small>สถานะปกติ</small></div>
-            <div className="summary-item good"><span>ระบบ AI</span><strong>พร้อมใช้งาน</strong><small>ตรวจล่าสุด 10:42</small></div>
-            <div className={`summary-item ${unreadCount ? 'warn' : 'good'}`}><span>ยังไม่รับทราบ</span><strong>{unreadCount} Alerts</strong><small>ศูนย์แจ้งเตือน</small></div>
-          </section>
-
           <div className="dashboard-grid manager-grid">
             <div className="main-column">
               <CampusMap manager />
               <section className="panel current-session-panel">
                 <div className="panel-heading"><div className="heading-with-icon"><Activity size={17} /><h2>Session ปัจจุบัน</h2></div><span className={`status-pill ${sessionStatus === 'active' ? 'is-active' : sessionStatus === 'paused' ? 'is-paused' : ''}`}><i />{sessionStatus === 'active' ? 'กำลังใช้งาน' : sessionStatus === 'paused' ? 'พักชั่วคราว' : 'ไม่มี Session'}</span></div>
                 {sessionStatus === 'idle' ? <div className="empty-row">ขณะนี้ไม่มี Active Session</div> : <div className="session-detail-list horizontal"><div><span>ผู้ขับ</span><strong>นภัส · Student</strong></div><div><span>เริ่มเมื่อ</span><strong>10:18 น.</strong></div><div><span>ระยะเวลา</span><strong>00:24:18</strong></div><div><span>ตำแหน่งล่าสุด</span><strong>10:42:16</strong></div><button className="button button-outline" type="button" onClick={() => onShowToast('โทรหาผู้ขับปัจจุบัน · ตัวอย่าง')}><Phone size={15} />โทรหาผู้ขับ</button></div>}
+                <SessionWorkflow status={sessionStatus} />
               </section>
               <section className="panel health-panel"><div className="panel-heading"><div className="heading-with-icon"><Activity size={17} /><h2>สถานะระบบรถ</h2></div><span className="panel-kicker">อัปเดต 10:42:18</span></div><div className="health-grid">{systemHealth.map((item) => <div className="health-card" key={item.name}><div><strong>{item.name}</strong><span className={`health-value ${item.state}`}><i />{item.value}</span></div><p>{item.detail}</p></div>)}</div><div className="callout callout-info">ข้อมูลรถที่ขาดหรือเก่าควรแสดงเป็น “ไม่สามารถรับข้อมูลจากรถได้” แทนการแสดงค่าเดิมเสมือนเป็นข้อมูลสด</div></section>
               <section className="panel stats-panel"><div className="stats-header"><div><h2>สถิติรายวัน</h2><p className="muted">ดูบนเว็บไซต์เท่านั้น · ไม่มีการส่งออกไฟล์</p></div><label className="date-field"><span>วันที่</span><input type="date" value={reportDate} onChange={(event) => { setReportDate(event.target.value); onShowToast('เปลี่ยนวันที่รายงาน · ข้อมูลตัวอย่าง'); }} /></label></div><div className="daily-stats"><div><strong>12</strong><span>จำนวน Session</span></div><div><strong>3 ชม. 48 นาที</strong><span>ระยะเวลารวม</span></div><div><strong>46.2 กม.</strong><span>ระยะทางรวม</span></div><div><strong>9</strong><span>ผู้ใช้ไม่ซ้ำ</span></div></div></section>
@@ -79,3 +73,4 @@ export default function ManagerPage({ view, onViewChange, alerts, onAcknowledge,
     </>
   );
 }
+

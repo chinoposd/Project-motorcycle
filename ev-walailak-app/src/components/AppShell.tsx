@@ -57,11 +57,19 @@ export default function AppShell({ page, onNavigate, onLogout, user, children }:
             <button className="icon-button help-button" type="button" aria-label="คู่มือการใช้งาน" title="คู่มือการใช้งาน">
               <CircleHelp size={19} strokeWidth={1.9} />
             </button>
-            <div className="profile-chip" aria-label={`${identity.label} (${user.email})`}>
-              <span className="avatar"><UserRound size={17} aria-hidden="true" /></span>
-              <span className="profile-name">{identity.label}</span>
-              <span className="profile-initial">{identity.initial}</span>
-            </div>
+            {user.role === 'Manager' ? (
+              <button className={`profile-chip profile-chip-button${page === 'manager-profile' ? ' active' : ''}`} type="button" aria-label={`เปิดโปรไฟล์ ${identity.label} (${user.email})`} aria-current={page === 'manager-profile' ? 'page' : undefined} title="เปิดโปรไฟล์ผู้จัดการ" onClick={() => onNavigate('manager-profile')}>
+                <span className="avatar"><UserRound size={17} aria-hidden="true" /></span>
+                <span className="profile-name">{identity.label}</span>
+                <span className="profile-initial">{identity.initial}</span>
+              </button>
+            ) : (
+              <div className="profile-chip" aria-label={`${identity.label} (${user.email})`}>
+                <span className="avatar"><UserRound size={17} aria-hidden="true" /></span>
+                <span className="profile-name">{identity.label}</span>
+                <span className="profile-initial">{identity.initial}</span>
+              </div>
+            )}
             <button className="icon-button logout-button" type="button" aria-label="ออกจากระบบ" title="ออกจากระบบ" onClick={onLogout}>
               <LogOut size={17} strokeWidth={1.9} aria-hidden="true" />
             </button>
@@ -80,3 +88,4 @@ export default function AppShell({ page, onNavigate, onLogout, user, children }:
     </div>
   );
 }
+
