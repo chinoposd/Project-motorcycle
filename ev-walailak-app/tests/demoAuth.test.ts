@@ -3,13 +3,16 @@ import { test } from 'node:test';
 import type { PageId, UserRole } from '../src/types.ts';
 import {
   authenticateDemoUser,
+  authenticateUser,
   clearDemoSession,
+  DEMO_ACCOUNTS_STORAGE_KEY,
   DEMO_ROLE_SHORTCUTS,
   DEMO_SESSION_STORAGE_KEY,
   getDemoCredentials,
   getLandingPage,
   isPageAllowed,
   readDemoSession,
+  registerDemoUser,
   writeDemoSession,
 } from '../src/auth/demoAuth.ts';
 
@@ -18,7 +21,7 @@ const demoPassword = 'Demo1234!';
 const roleCases: { role: UserRole; email: string; landing: PageId; allowed: PageId[] }[] = [
   { role: 'Student', email: 'student@demo.wu.ac.th', landing: 'home', allowed: ['home', 'ride'] },
   { role: 'Employee', email: 'employee@demo.wu.ac.th', landing: 'home', allowed: ['home', 'ride'] },
-  { role: 'Manager', email: 'manager@demo.wu.ac.th', landing: 'manager', allowed: ['home', 'ride', 'manager'] },
+  { role: 'Manager', email: 'manager@demo.wu.ac.th', landing: 'manager', allowed: ['home', 'ride', 'manager', 'manager-profile'] },
   { role: 'Admin', email: 'admin@demo.wu.ac.th', landing: 'admin', allowed: ['admin'] },
 ];
 
@@ -65,7 +68,7 @@ test('demoAuth labels the employee role as บุคลากร', () => {
 test('demoAuth keeps each role within its permitted pages and landing page', () => {
   for (const account of roleCases) {
     assert.equal(getLandingPage(account.role), account.landing);
-    for (const page of ['home', 'ride', 'manager', 'admin'] satisfies PageId[]) {
+    for (const page of ['home', 'ride', 'manager', 'manager-profile', 'admin'] satisfies PageId[]) {
       assert.equal(isPageAllowed(account.role, page), account.allowed.includes(page));
     }
   }
@@ -115,3 +118,42 @@ test('demoAuth degrades safely when browser storage throws', () => {
   assert.equal(readDemoSession(unavailableStorage), null);
   assert.doesNotThrow(() => clearDemoSession(unavailableStorage));
 });
+
+test('registered demo accounts persist and authenticate without storing a plaintext password', async () => {
+  const storage = new MemoryStorage();
+  const registration = await registerDemoUser('ผู้ใช้ใหม่', 'New.User@demo.wu.ac.th', 'LongPassword123!', storage);
+
+  assert.equal(registration.error, null);
+  assert.ok(registration.user);
+  assert.equal(registration.user.email, 'new.user@demo.wu.ac.th');
+  assert.equal(registration.user.role, 'Student');
+
+  const stored = storage.getItem(DEMO_ACCOUNTS_STORAGE_KEY) ?? '';
+  assert.equal(stored.includes('LongPassword123!'), false);
+  assert.equal(await authenticateUser('new.user@demo.wu.ac.th', 'LongPassword123!', storage).then((user) => user?.id), registration.user.id);
+  assert.equal(await authenticateUser('new.user@demo.wu.ac.th', 'wrong-password', storage), null);
+});
+
+test('registered demo accounts reject duplicate emails regardless of letter case', async () => {
+  const storage = new MemoryStorage();
+  const first = await registerDemoUser('คนแรก', 'same.user@demo.wu.ac.th', 'LongPassword123!', storage);
+  const duplicate = await registerDemoUser('คนที่สอง', ' SAME.USER@DEMO.WU.AC.TH ', 'DifferentPassword123!', storage);
+
+  assert.ok(first.user);
+  assert.equal(duplicate.user, null);
+  assert.equal(duplicate.error, 'email-in-use');
+  assert.equal(await authenticateUser('same.user@demo.wu.ac.th', 'LongPassword123!', storage).then((user) => user?.name), 'คนแรก');
+});
+
+test('registered demo accounts validate fields and can restore a session after reload', async () => {
+  const storage = new MemoryStorage();
+  assert.equal((await registerDemoUser('', 'valid@demo.wu.ac.th', 'LongPassword123!', storage)).error, 'invalid-input');
+  assert.equal((await registerDemoUser('ผู้ใช้', 'invalid-email', 'LongPassword123!', storage)).error, 'invalid-input');
+  assert.equal((await registerDemoUser('ผู้ใช้', 'valid@demo.wu.ac.th', 'short', storage)).error, 'invalid-input');
+
+  const registration = await registerDemoUser('ผู้ใช้', 'valid@demo.wu.ac.th', 'LongPassword123!', storage);
+  assert.ok(registration.user);
+  writeDemoSession(registration.user, storage);
+  assert.deepEqual(readDemoSession(storage), registration.user);
+});
+
