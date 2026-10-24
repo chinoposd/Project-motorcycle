@@ -3,15 +3,23 @@ import { ArrowLeft, BadgeCheck, Building2, Check, Mail, Phone, Save, ShieldCheck
 import type { DemoUser } from '../auth/demoAuth';
 import type { ManagerProfile } from '../auth/managerProfile';
 import PageHeader from '../components/PageHeader';
+import ProfilePhotoControl from '../components/ProfilePhotoControl';
+import ProfileAccountActions from '../components/ProfileAccountActions';
 
 interface ManagerProfilePageProps {
   user: DemoUser;
   profile: ManagerProfile;
   onSave: (profile: ManagerProfile) => boolean;
   onCancel: () => void;
+  profilePhoto: string | null;
+  onPhotoSave: (photo: string | null) => boolean;
+  canCloseAccount: boolean;
+  onResetPassword: () => void;
+  onCloseAccount: () => boolean;
+  onShowToast: (message: string) => void;
 }
 
-export default function ManagerProfilePage({ user, profile, onSave, onCancel }: ManagerProfilePageProps) {
+export default function ManagerProfilePage({ user, profile, onSave, onCancel, profilePhoto, onPhotoSave, canCloseAccount, onResetPassword, onCloseAccount, onShowToast }: ManagerProfilePageProps) {
   const [form, setForm] = useState(profile);
   const [saved, setSaved] = useState(false);
 
@@ -32,16 +40,17 @@ export default function ManagerProfilePage({ user, profile, onSave, onCancel }: 
       <PageHeader title="โปรไฟล์ผู้จัดการ" description="จัดการข้อมูลที่ใช้แสดงในบัญชี Manager ของคุณ" badge="Manager" />
       <div className="manager-profile-layout">
         <aside className="panel manager-profile-summary">
-          <div className="manager-profile-avatar"><UserRound size={29} aria-hidden="true" /></div>
+          <ProfilePhotoControl photo={profilePhoto} name={form.name} onSave={onPhotoSave} />
           <span className="profile-role"><BadgeCheck size={14} aria-hidden="true" /> ผู้จัดการ</span>
           <h2>{form.name || 'ชื่อผู้จัดการ'}</h2>
           <p>{user.email}</p>
           <div className="profile-summary-divider" />
           <div className="profile-summary-detail"><Building2 size={15} aria-hidden="true" /><span>{form.department || 'ยังไม่ได้ระบุหน่วยงาน'}</span></div>
           <div className="profile-summary-detail"><Phone size={15} aria-hidden="true" /><span>{form.phone || 'ยังไม่ได้ระบุเบอร์โทรศัพท์'}</span></div>
-          <div className="callout callout-info profile-local-note"><ShieldCheck size={15} aria-hidden="true" /><p>ข้อมูลนี้เก็บไว้ในเบราว์เซอร์เครื่องนี้ ไม่ได้ส่งไปยังระบบบัญชีจริง</p></div>
+          <div className="callout callout-info profile-local-note"><ShieldCheck size={15} aria-hidden="true" /><p>ข้อมูลและรูปโปรไฟล์เก็บไว้ในเบราว์เซอร์เครื่องนี้ ไม่ได้ส่งไปยังระบบบัญชีจริง</p></div>
         </aside>
 
+        <div className="profile-main-column">
         <section className="panel manager-profile-form-panel">
           <div className="manager-profile-section-heading">
             <span className="profile-section-icon"><UserRound size={18} aria-hidden="true" /></span>
@@ -78,6 +87,8 @@ export default function ManagerProfilePage({ user, profile, onSave, onCancel }: 
             </div>
           </form>
         </section>
+        <ProfileAccountActions canCloseAccount={canCloseAccount} onResetPassword={onResetPassword} onCloseAccount={onCloseAccount} onShowToast={onShowToast} />
+        </div>
       </div>
     </>
   );
