@@ -58,6 +58,14 @@ svg { flex: none; }
 .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .profile-initial { display: none; }
 .main-content { width: min(100%, 1500px); padding: 18px 30px 42px; margin: 0 auto; flex: 1; }
+.breadcrumbs { max-width: 100%; overflow-x: auto; margin: 0 0 10px; scrollbar-width: none; }
+.breadcrumbs::-webkit-scrollbar { display: none; }
+.breadcrumbs ol { display: flex; align-items: center; gap: 8px; min-width: max-content; padding: 0; margin: 0; list-style: none; }
+.breadcrumbs li { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.breadcrumb-separator { color: #91a2b7; }
+.breadcrumb-link { padding: 2px 0; border: 0; color: #496b93; background: transparent; font-size: inherit; }
+.breadcrumb-link:hover { color: var(--blue); text-decoration: underline; }
+.breadcrumb-current { color: var(--ink); font-weight: 600; }
 .prototype-note { display: flex; width: fit-content; align-items: center; gap: 7px; padding: 5px 10px; margin: 0 0 17px; border: 1px solid #d5e2f0; border-radius: 5px; color: #5c718c; background: #e8f1fb; font-size: 10px; }
 .site-footer { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px max(30px, calc((100vw - 1440px)/2 + 30px)); border-top: 1px solid var(--line); background: var(--paper); color: var(--muted); font-size: 10px; }
 .site-footer div { display: flex; align-items: center; gap: 8px; }
