@@ -128,6 +128,7 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(event) => handlePasswordChange(event.target.value)}
+                    placeholder="xxxxxxxx"
                   maxLength={256}
                   aria-invalid={error ? true : undefined}
                   aria-describedby={error ? 'login-error' : undefined}
