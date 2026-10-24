@@ -7,6 +7,8 @@ export type AppUser = DemoUser & {
   authSource: 'demo' | 'supabase';
   accountStatus?: 'Pending' | 'Approved' | 'Rejected' | 'Suspended';
   drivingPermission?: boolean;
+  phone?: string;
+  avatarPath?: string | null;
 };
 
 export type SupabaseAuthError =
@@ -88,11 +90,25 @@ export async function signOutSupabase(): Promise<void> {
   if (supabase) await supabase.auth.signOut();
 }
 
+export async function sendSupabasePasswordReset(email: string): Promise<{ ok: boolean }> {
+  if (!supabase) return { ok: false };
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: window.location.origin,
+  });
+  return { ok: !error };
+}
+
+export async function updateSupabasePassword(password: string): Promise<{ ok: boolean }> {
+  if (!supabase) return { ok: false };
+  const { error } = await supabase.auth.updateUser({ password });
+  return { ok: !error };
+}
+
 async function resolveProfile(authUser: SupabaseAuthUser): Promise<SupabaseAuthResult> {
   if (!supabase || !authUser.email) return { user: null, error: 'profile-missing' };
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, requested_role, role, account_status, driving_permission')
+    .select('id, full_name, phone, avatar_path, requested_role, role, account_status, driving_permission')
     .eq('id', authUser.id)
     .maybeSingle();
   if (error) return { user: null, error: 'request-failed' };
@@ -109,6 +125,8 @@ async function resolveProfile(authUser: SupabaseAuthUser): Promise<SupabaseAuthR
       authSource: 'supabase',
       accountStatus: profile.status,
       drivingPermission: profile.drivingPermission,
+      phone: data.phone,
+      avatarPath: data.avatar_path,
     },
     error: null,
   };

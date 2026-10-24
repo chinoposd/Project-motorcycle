@@ -2,14 +2,26 @@ import { useState } from 'react';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
 
 interface ProfileAccountActionsProps {
+  isRealAccount?: boolean;
   canCloseAccount: boolean;
-  onResetPassword: () => void;
+  onResetPassword: () => void | Promise<void>;
   onCloseAccount: () => boolean;
   onShowToast: (message: string) => void;
 }
 
-export default function ProfileAccountActions({ canCloseAccount, onResetPassword, onCloseAccount, onShowToast }: ProfileAccountActionsProps) {
+export default function ProfileAccountActions({ isRealAccount = false, canCloseAccount, onResetPassword, onCloseAccount, onShowToast }: ProfileAccountActionsProps) {
   const [confirmClose, setConfirmClose] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
+
+  async function handleResetPassword() {
+    if (isSendingReset) return;
+    setIsSendingReset(true);
+    try {
+      await onResetPassword();
+    } finally {
+      setIsSendingReset(false);
+    }
+  }
 
   return (
     <section className="panel profile-account-actions">
@@ -18,13 +30,13 @@ export default function ProfileAccountActions({ canCloseAccount, onResetPassword
         <div><h2>ความปลอดภัยและบัญชี</h2><p>จัดการรหัสผ่านและสถานะบัญชีของคุณ</p></div>
       </div>
       <div className="profile-account-action-row">
-        <div><strong>รีเซ็ตรหัสผ่าน</strong><p>ระบบจริงจะส่งลิงก์รีเซ็ตไปยังอีเมลบัญชีผ่าน Supabase Auth</p></div>
-        <button className="button button-outline" type="button" onClick={onResetPassword}>ส่งลิงก์รีเซ็ต</button>
+        <div><strong>รีเซ็ตรหัสผ่าน</strong><p>{isRealAccount ? 'ส่งลิงก์รีเซ็ตไปยังอีเมลบัญชีผ่าน Supabase Auth' : 'บัญชีตัวอย่างไม่สามารถส่งอีเมลรีเซ็ตรหัสผ่านได้'}</p></div>
+        <button className="button button-outline" type="button" disabled={!isRealAccount || isSendingReset} onClick={() => { void handleResetPassword(); }}>{isSendingReset ? 'กำลังส่ง…' : 'ส่งลิงก์รีเซ็ต'}</button>
       </div>
       <div className="profile-account-action-row profile-close-account-row">
-        <div><strong>ปิดบัญชี</strong><p>ปิดบัญชีแล้วจะเปิดกลับไม่ได้ และจะไม่ลบประวัติการใช้งานหรือแทนคำขอลบข้อมูลส่วนบุคคล</p></div>
+        <div><strong>ปิดบัญชี</strong><p>{isRealAccount ? 'การปิดบัญชีจริงต้องติดต่อผู้ดูแลระบบเพื่อดำเนินการอย่างปลอดภัย' : 'ปิดบัญชีตัวอย่างแล้วจะเปิดกลับไม่ได้ และจะไม่ลบประวัติการใช้งาน'}</p></div>
         <button className="button button-danger" type="button" disabled={!canCloseAccount} onClick={() => setConfirmClose(true)}>ปิดบัญชี</button>
-        {!canCloseAccount && <small className="profile-close-blocked">ต้องไม่มี Reservation, Pending Start, Active Session, Pending End หรือรายการซิงก์ค้างก่อน</small>}
+        {!canCloseAccount && !isRealAccount && <small className="profile-close-blocked">ต้องไม่มี Reservation, Pending Start, Active Session, Pending End หรือรายการซิงก์ค้างก่อน</small>}
       </div>
       {confirmClose && (
         <div className="profile-close-confirm" role="alertdialog" aria-modal="true" aria-labelledby="close-account-title" aria-describedby="close-account-description">

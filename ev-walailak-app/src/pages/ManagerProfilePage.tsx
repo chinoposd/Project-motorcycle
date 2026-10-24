@@ -12,7 +12,7 @@ interface ManagerProfilePageProps {
   onSave: (profile: ManagerProfile) => boolean;
   onCancel: () => void;
   profilePhoto: string | null;
-  onPhotoSave: (photo: string | null) => boolean;
+  onPhotoSave: (photo: string | null) => boolean | Promise<boolean>;
   canCloseAccount: boolean;
   onResetPassword: () => void;
   onCloseAccount: () => boolean;
@@ -87,7 +87,7 @@ export default function ManagerProfilePage({ user, profile, onSave, onCancel, pr
             </div>
           </form>
         </section>
-        <ProfileAccountActions canCloseAccount={canCloseAccount} onResetPassword={onResetPassword} onCloseAccount={onCloseAccount} onShowToast={onShowToast} />
+        <ProfileAccountActions isRealAccount={false} canCloseAccount={canCloseAccount} onResetPassword={onResetPassword} onCloseAccount={onCloseAccount} onShowToast={onShowToast} />
         </div>
       </div>
     </>
