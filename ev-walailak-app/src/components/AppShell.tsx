@@ -11,7 +11,9 @@ const navItems: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = 
 ];
 
 interface AppShellProps {
+  authSource: 'demo' | 'supabase';
   page: PageId;
+  profilePhoto: string | null;
   onNavigate: (page: PageId) => void;
   onLogout: () => void;
   user: DemoUser;
@@ -25,8 +27,9 @@ const roleLabels = {
   Admin: 'ผู้ดูแลระบบ',
 } as const;
 
-export default function AppShell({ page, onNavigate, onLogout, user, children }: AppShellProps) {
+export default function AppShell({ authSource, page, profilePhoto, onNavigate, onLogout, user, children }: AppShellProps) {
   const identity = { initial: user.name.slice(0, 1), label: `${user.name} · ${roleLabels[user.role]}` };
+  const profilePage: PageId = user.role === 'Manager' ? 'manager-profile' : 'profile-settings';
   const visibleNavItems = navItems.filter(({ id }) => isPageAllowed(user.role, id));
 
   return (
@@ -57,19 +60,11 @@ export default function AppShell({ page, onNavigate, onLogout, user, children }:
             <button className="icon-button help-button" type="button" aria-label="คู่มือการใช้งาน" title="คู่มือการใช้งาน">
               <CircleHelp size={19} strokeWidth={1.9} />
             </button>
-            {user.role === 'Manager' ? (
-              <button className={`profile-chip profile-chip-button${page === 'manager-profile' ? ' active' : ''}`} type="button" aria-label={`เปิดโปรไฟล์ ${identity.label} (${user.email})`} aria-current={page === 'manager-profile' ? 'page' : undefined} title="เปิดโปรไฟล์ผู้จัดการ" onClick={() => onNavigate('manager-profile')}>
-                <span className="avatar"><UserRound size={17} aria-hidden="true" /></span>
+            <button className={`profile-chip profile-chip-button${page === profilePage ? ' active' : ''}`} type="button" aria-label={`เปิดโปรไฟล์ ${identity.label} (${user.email})`} aria-current={page === profilePage ? 'page' : undefined} title="เปิดตั้งค่าโปรไฟล์" onClick={() => onNavigate(profilePage)}>
+                <span className="avatar">{profilePhoto ? <img src={profilePhoto} alt="" /> : <UserRound size={17} aria-hidden="true" />}</span>
                 <span className="profile-name">{identity.label}</span>
                 <span className="profile-initial">{identity.initial}</span>
-              </button>
-            ) : (
-              <div className="profile-chip" aria-label={`${identity.label} (${user.email})`}>
-                <span className="avatar"><UserRound size={17} aria-hidden="true" /></span>
-                <span className="profile-name">{identity.label}</span>
-                <span className="profile-initial">{identity.initial}</span>
-              </div>
-            )}
+            </button>
             <button className="icon-button logout-button" type="button" aria-label="ออกจากระบบ" title="ออกจากระบบ" onClick={onLogout}>
               <LogOut size={17} strokeWidth={1.9} aria-hidden="true" />
             </button>
@@ -78,7 +73,7 @@ export default function AppShell({ page, onNavigate, onLogout, user, children }:
       </header>
 
       <main className="main-content">
-        <div className="prototype-note"><LockKeyhole size={14} aria-hidden="true" /><span>ข้อมูลตัวอย่าง · ยังไม่เชื่อมต่อรถหรือบัญชีจริง</span></div>
+        <div className="prototype-note"><LockKeyhole size={14} aria-hidden="true" /><span>{authSource === 'supabase' ? 'ข้อมูลรถและ Session เป็นข้อมูลตัวอย่าง · บัญชีเชื่อมต่อ Supabase' : 'ข้อมูลตัวอย่าง · ยังไม่เชื่อมต่อรถหรือบัญชีจริง'}</span></div>
         {children}
       </main>
       <footer className="site-footer">

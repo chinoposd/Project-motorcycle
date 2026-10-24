@@ -33,6 +33,7 @@ export interface RegistrationResult {
 
 export const DEMO_SESSION_STORAGE_KEY = 'ev-walailak-demo-session:v1';
 export const DEMO_ACCOUNTS_STORAGE_KEY = 'ev-walailak-demo-accounts:v1';
+export const DEMO_CLOSED_ACCOUNTS_STORAGE_KEY = 'ev-walailak-closed-accounts:v1';
 const SESSION_SCHEMA_VERSION = 1;
 const ACCOUNT_SCHEMA_VERSION = 1;
 const PASSWORD_HASH_ITERATIONS = 600_000;
@@ -51,10 +52,10 @@ export const DEMO_ROLE_SHORTCUTS: readonly { role: UserRole; label: string }[] =
 }));
 
 const ROLE_PAGES: Record<UserRole, readonly PageId[]> = {
-  Student: ['home', 'ride'],
-  Employee: ['home', 'ride'],
+  Student: ['home', 'ride', 'profile-settings'],
+  Employee: ['home', 'ride', 'profile-settings'],
   Manager: ['home', 'ride', 'manager', 'manager-profile'],
-  Admin: ['admin'],
+  Admin: ['admin', 'profile-settings'],
 };
 
 const ROLE_LANDING_PAGE: Record<UserRole, PageId> = {
@@ -64,14 +65,14 @@ const ROLE_LANDING_PAGE: Record<UserRole, PageId> = {
   Admin: 'admin',
 };
 
-export function authenticateDemoUser(email: string, password: string): DemoUser | null {
+export function authenticateDemoUser(email: string, password: string, storage?: SessionStorageLike): DemoUser | null {
   const normalizedEmail = email.trim().toLowerCase();
   const account = DEMO_ACCOUNTS.find((candidate) => candidate.email === normalizedEmail && candidate.password === password);
-  return account ? toDemoUser(account) : null;
+  return account && !isDemoAccountClosed(account.id, storage) ? toDemoUser(account) : null;
 }
 
 export async function authenticateUser(email: string, password: string, storage?: SessionStorageLike): Promise<DemoUser | null> {
-  const demoUser = authenticateDemoUser(email, password);
+  const demoUser = authenticateDemoUser(email, password, storage);
   if (demoUser) return demoUser;
 
   const accountStorage = getAccountStorage(storage);
@@ -81,7 +82,7 @@ export async function authenticateUser(email: string, password: string, storage?
   const accounts = readStoredAccounts(accountStorage);
   if (!accounts) return null;
   const account = accounts.find((candidate) => candidate.email === normalizeEmail(email));
-  if (!account) return null;
+  if (!account || isDemoAccountClosed(account.id, storage)) return null;
 
   try {
     const candidateHash = await derivePasswordHash(password, account.passwordSalt, cryptoProvider);
@@ -155,6 +156,19 @@ export function getLandingPage(role: UserRole): PageId {
   return ROLE_LANDING_PAGE[role];
 }
 
+export function closeDemoAccount(userId: string, storage?: SessionStorageLike): boolean {
+  const accountStorage = getAccountStorage(storage);
+  if (!accountStorage || !userId || userId.length > 120) return false;
+
+  try {
+    const closedIds = readClosedAccountIds(accountStorage);
+    accountStorage.setItem(DEMO_CLOSED_ACCOUNTS_STORAGE_KEY, JSON.stringify([...new Set([...closedIds, userId])]));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function readDemoSession(storage?: SessionStorageLike): DemoUser | null {
   const sessionStorage = getStorage(storage);
   if (!sessionStorage) return null;
@@ -179,7 +193,7 @@ export function readDemoSession(storage?: SessionStorageLike): DemoUser | null {
     const registeredAccount = demoAccount ? null : readStoredAccounts(getAccountStorage(storage))
       ?.find((candidate) => candidate.id === parsed.user.id) ?? null;
     const account = demoAccount ?? registeredAccount;
-    if (!account || !matchesAccount(parsed.user, account)) {
+    if (!account || isDemoAccountClosed(account.id, storage) || !matchesAccount(parsed.user, account)) {
       removeSession(sessionStorage);
       return null;
     }
@@ -199,7 +213,7 @@ export function writeDemoSession(user: DemoUser, storage?: SessionStorageLike): 
   const registeredAccount = demoAccount ? null : readStoredAccounts(getAccountStorage(storage))
     ?.find((candidate) => candidate.id === user.id) ?? null;
   const account = demoAccount ?? registeredAccount;
-  if (!account || !matchesAccount(user, account)) return;
+  if (!account || isDemoAccountClosed(account.id, storage) || !matchesAccount(user, account)) return;
 
   try {
     sessionStorage.setItem(DEMO_SESSION_STORAGE_KEY, JSON.stringify({
@@ -232,6 +246,24 @@ function getAccountStorage(storage?: SessionStorageLike): SessionStorageLike | n
     return typeof window === 'undefined' ? null : window.localStorage;
   } catch {
     return null;
+  }
+}
+
+function isDemoAccountClosed(userId: string, storage?: SessionStorageLike): boolean {
+  const accountStorage = getAccountStorage(storage);
+  return accountStorage ? readClosedAccountIds(accountStorage).includes(userId) : false;
+}
+
+function readClosedAccountIds(storage: SessionStorageLike): string[] {
+  try {
+    const raw = storage.getItem(DEMO_CLOSED_ACCOUNTS_STORAGE_KEY);
+    if (raw === null) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.every((id) => typeof id === 'string' && id.length > 0 && id.length <= 120)
+      ? parsed
+      : [];
+  } catch {
+    return [];
   }
 }
 

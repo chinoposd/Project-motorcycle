@@ -21,6 +21,7 @@ import type { UserRole } from '../types';
 
 interface LoginPageProps {
   onLogin: (user: DemoUser) => void;
+  notice?: string;
 }
 
 const roleIcons: Record<UserRole, typeof GraduationCap> = {
@@ -30,7 +31,7 @@ const roleIcons: Record<UserRole, typeof GraduationCap> = {
   Admin: Settings,
 };
 
-export default function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
   const [isRegistering, setIsRegistering] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -116,6 +117,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <h1 id="login-heading">{isRegistering ? 'สมัครบัญชีทดลอง' : 'เข้าสู่ระบบ'}</h1>
             <p>{isRegistering ? 'สร้างบัญชีสำหรับทดลองใช้งานในเบราว์เซอร์นี้' : 'ลงชื่อเข้าใช้เพื่อใช้งานระบบรถจักรยานยนต์ไฟฟ้า'}</p>
           </header>
+          {notice && <p className="login-notice" role="status">{notice}</p>}
 
           <form className="login-form" onSubmit={handleSubmit} noValidate>
             {isRegistering ? (
