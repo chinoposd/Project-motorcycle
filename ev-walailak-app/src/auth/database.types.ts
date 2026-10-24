@@ -8,6 +8,7 @@ export interface Database {
           id: string;
           full_name: string;
           phone: string;
+          avatar_path: string | null;
           department: string;
           requested_role: 'Student' | 'Employee';
           role: 'Student' | 'Employee' | 'Manager' | 'Admin';
@@ -20,6 +21,7 @@ export interface Database {
           id: string;
           full_name: string;
           phone?: string;
+          avatar_path?: string | null;
           department?: string;
           requested_role: 'Student' | 'Employee';
           role: 'Student' | 'Employee' | 'Manager' | 'Admin';
@@ -32,6 +34,7 @@ export interface Database {
           id?: string;
           full_name?: string;
           phone?: string;
+          avatar_path?: string | null;
           department?: string;
           requested_role?: 'Student' | 'Employee';
           role?: 'Student' | 'Employee' | 'Manager' | 'Admin';

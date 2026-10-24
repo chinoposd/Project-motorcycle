@@ -3,7 +3,8 @@ import { AuthRequestEpoch } from './auth/authRequestEpoch';
 import { requiresApprovalGate } from './auth/accountAccess';
 import { getPageForAuthUpdate, shouldResetPageForAuthUpdate } from './auth/authSessionPolicy';
 import { clearDemoSession, closeDemoAccount, getLandingPage, isPageAllowed, readDemoSession, writeDemoSession, type DemoUser } from './auth/demoAuth';
-import { getCurrentSupabaseUser, signOutSupabase, type AppUser } from './auth/supabaseAuth';
+import { getCurrentSupabaseUser, sendSupabasePasswordReset, signOutSupabase, updateSupabasePassword, type AppUser } from './auth/supabaseAuth';
+import { createSupabaseProfilePhotoUrl, saveSupabaseProfilePhoto, updateSupabaseProfile } from './auth/supabaseProfile';
 import { supabase, supabaseConfig } from './auth/supabaseClient';
 import { readManagerProfile, writeManagerProfile, type ManagerProfile } from './auth/managerProfile';
 import { readUserProfile, writeUserProfile } from './auth/userProfile';
@@ -16,6 +17,7 @@ import ManagerPage from './pages/ManagerPage';
 import ManagerProfilePage from './pages/ManagerProfilePage';
 import ProfileSettingsPage from './pages/ProfileSettingsPage';
 import OverviewPage from './pages/OverviewPage';
+import PasswordRecoveryPage from './pages/PasswordRecoveryPage';
 import RidePage from './pages/RidePage';
 import { initialAlerts } from './data/mockData';
 import type { AlertRecord, ManagerView, PageId, SessionStatus } from './types';
@@ -30,6 +32,7 @@ export default function App() {
     return { ...restored, name, authSource: 'demo' };
   });
   const [isRestoringAuth, setIsRestoringAuth] = useState(supabaseConfig.mode === 'configured');
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [managerProfile, setManagerProfile] = useState<ManagerProfile>(() => {
     const restored = readDemoSession();
     return restored?.role === 'Manager'
@@ -79,7 +82,14 @@ export default function App() {
           const shouldResetPage = shouldResetPageForAuthUpdate(currentUserRef.current, result.user, currentPageRef.current);
           currentUserRef.current = result.user;
           setUser(result.user);
-          setProfilePhoto(readProfilePhoto(result.user.id));
+          setProfilePhoto(result.user.authSource === 'demo' ? readProfilePhoto(result.user.id) : null);
+          if (result.user.avatarPath) {
+            void createSupabaseProfilePhotoUrl(result.user.avatarPath).then((photoUrl) => {
+              if (mounted && authRequestEpochRef.current.isCurrent(requestEpoch) && currentUserRef.current?.id === result.user?.id) {
+                setProfilePhoto(photoUrl);
+              }
+            });
+          }
           if (shouldResetPage) {
             setSessionStatus('idle');
             navigatePage(getPageForAuthUpdate(result.user));
@@ -102,6 +112,7 @@ export default function App() {
     void resolveCloudSession(authRequestEpochRef.current.begin());
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
+      if (event === 'PASSWORD_RECOVERY') setIsPasswordRecovery(true);
       if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
         authRequestEpochRef.current.invalidate();
         clearCloudIdentity();
@@ -160,6 +171,7 @@ export default function App() {
 
   function handleLogout() {
     authRequestEpochRef.current.invalidate();
+    setIsPasswordRecovery(false);
     if (user?.authSource === 'supabase') void signOutSupabase();
     clearDemoSession();
     currentUserRef.current = null;
@@ -174,8 +186,8 @@ export default function App() {
 
   function handleNavigate(nextPage: PageId) {
     if (!user) return;
-    if (user.authSource === 'supabase' && (nextPage === 'manager-profile' || nextPage === 'profile-settings')) {
-      showToast('การแก้โปรไฟล์บัญชีจริงยังไม่เปิดใช้ · ไม่มีการบันทึกข้อมูล');
+    if (user.authSource === 'supabase' && nextPage === 'manager-profile') {
+      showToast('การตั้งค่าโปรไฟล์ Manager ยังไม่เปิดใช้');
       return;
     }
     navigatePage(isPageAllowed(user.role, nextPage) ? nextPage : getLandingPage(user.role));
@@ -199,10 +211,24 @@ export default function App() {
     return true;
   }
 
-  function handleUserProfileSave(profile: { name?: string; phone: string }): boolean {
+  async function handleUserProfileSave(profile: { name?: string; phone: string }): Promise<boolean> {
     if (user?.authSource === 'supabase') {
-      showToast('การแก้โปรไฟล์บัญชีจริงยังไม่เปิดใช้ · ไม่มีการบันทึกข้อมูล');
-      return false;
+      let result;
+      try {
+        result = await updateSupabaseProfile(user.id, profile);
+      } catch {
+        showToast('บันทึกไม่สำเร็จ · ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+        return false;
+      }
+      if (!result.ok) {
+        showToast(result.message);
+        return false;
+      }
+      const updatedUser = { ...user, name: result.name, phone: result.phone };
+      currentUserRef.current = updatedUser;
+      setUser(updatedUser);
+      showToast('บันทึกข้อมูลโปรไฟล์ใน Supabase แล้ว');
+      return true;
     }
     if (!user || user.role === 'Manager' || !writeUserProfile(user.id, profile, user.role === 'Admin' ? user.name : undefined)) {
       showToast('บันทึกไม่สำเร็จ · เบราว์เซอร์อาจปิดการจัดเก็บข้อมูล');
@@ -217,10 +243,28 @@ export default function App() {
     return true;
   }
 
-  function handleProfilePhotoSave(photo: string | null): boolean {
-    if (user?.authSource === 'supabase') {
-      showToast('การแก้โปรไฟล์บัญชีจริงยังไม่เปิดใช้ · ไม่มีการบันทึกรูป');
-      return false;
+  async function handleProfilePhotoSave(photo: string | null): Promise<boolean> {
+    if (!user) return false;
+    if (user.authSource === 'supabase') {
+      let result;
+      try {
+        result = await saveSupabaseProfilePhoto(user.id, user.avatarPath ?? null, photo);
+      } catch {
+        showToast('บันทึกรูปไม่สำเร็จ · ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+        return false;
+      }
+      if (!result.ok) {
+        showToast(result.message);
+        return false;
+      }
+      const updatedUser = { ...user, avatarPath: result.avatarPath };
+      currentUserRef.current = updatedUser;
+      setUser(updatedUser);
+      setProfilePhoto(result.photoUrl);
+      showToast(result.cleanupFailed
+        ? 'บันทึกรูปโปรไฟล์แล้ว แต่ลบไฟล์รูปเก่าไม่สำเร็จ'
+        : photo ? 'บันทึกรูปโปรไฟล์ใน Supabase แล้ว' : 'ลบรูปโปรไฟล์จาก Supabase แล้ว');
+      return true;
     }
     if (!user || !writeProfilePhoto(user.id, photo)) {
       showToast('บันทึกรูปไม่สำเร็จ · พื้นที่จัดเก็บในเบราว์เซอร์อาจไม่เพียงพอ');
@@ -231,8 +275,29 @@ export default function App() {
     return true;
   }
 
-  function handleProfilePasswordReset() {
-    showToast('บัญชีตัวอย่างยังไม่เชื่อม Supabase Auth · ยังไม่ได้ส่งอีเมล');
+  async function handleProfilePasswordReset() {
+    if (!user || user.authSource !== 'supabase') return;
+    let result;
+    try {
+      result = await sendSupabasePasswordReset(user.email);
+    } catch {
+      showToast('ส่งลิงก์ไม่สำเร็จ · ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+      return;
+    }
+    showToast(result.ok
+      ? 'ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลบัญชีแล้ว'
+      : 'ส่งลิงก์ไม่สำเร็จ · ตรวจสอบการตั้งค่า Auth และ Redirect URLs ใน Supabase');
+  }
+
+  async function handlePasswordRecoveryComplete() {
+    setIsPasswordRecovery(false);
+    await signOutSupabase();
+    currentUserRef.current = null;
+    setUser(null);
+    setProfilePhoto(null);
+    setSessionStatus('idle');
+    navigatePage('home');
+    setToast('เปลี่ยนรหัสผ่านแล้ว · เข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย');
   }
 
   function handleProfileCloseAccount(): boolean {
@@ -298,6 +363,7 @@ export default function App() {
   }
 
   if (isRestoringAuth) return <main className="auth-loading" role="status">กำลังตรวจสอบบัญชี…</main>;
+  if (isPasswordRecovery) return <PasswordRecoveryPage onSave={async (password) => (await updateSupabasePassword(password)).ok} onComplete={handlePasswordRecoveryComplete} onCancel={handleLogout} />;
   if (!user) return <LoginPage onLogin={handleLogin} notice={toast} />;
   if (requiresApprovalGate(user)) return <ApprovalStatusPage user={user} onLogout={handleLogout} />;
 
@@ -307,7 +373,7 @@ export default function App() {
       {page === 'ride' && <RidePage status={sessionStatus} onPauseResume={handleStartPause} onEnd={handleEndSession} onShowToast={showToast} />}
       {page === 'manager' && <ManagerPage view={managerView} onViewChange={setManagerView} alerts={alerts} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
       {page === 'manager-profile' && user.role === 'Manager' && <ManagerProfilePage user={user} profile={managerProfile} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleManagerProfileSave} onCancel={() => handleNavigate('manager')} canCloseAccount={sessionStatus === 'idle'} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
-      {page === 'profile-settings' && user.role !== 'Manager' && <ProfileSettingsPage user={user} profile={readUserProfile(user.id)} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleNavigate(getLandingPage(user.role))} canCloseAccount={user.role === 'Admin' || sessionStatus === 'idle'} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
+      {page === 'profile-settings' && user.role !== 'Manager' && <ProfileSettingsPage user={user} profile={user.authSource === 'supabase' ? { name: user.name, phone: user.phone ?? '' } : readUserProfile(user.id)} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleNavigate(getLandingPage(user.role))} canCloseAccount={user.authSource === 'demo' && (user.role === 'Admin' || sessionStatus === 'idle')} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
       {page === 'admin' && <AdminPage authSource={user.authSource} />}
       <div className={`toast${toast ? ' visible' : ''}`} role="status" aria-live="polite">{toast}</div>
     </AppShell>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, BadgeCheck, Check, CircleAlert, FileClock, LoaderCircle, RefreshCw, Search, ShieldCheck, UserRoundCheck, UserRoundX } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { initialAccounts } from '../data/mockData';
@@ -39,6 +39,7 @@ export default function AdminPage({ authSource }: AdminPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const reviewDialogRef = useRef<HTMLDialogElement>(null);
 
   const loadPendingAccounts = useCallback(async () => {
     setListState('loading');
@@ -74,6 +75,13 @@ export default function AdminPage({ authSource }: AdminPageProps) {
     setDecision(null);
     setRejectionReason('');
     setReviewError('');
+  }, [selectedAccount]);
+
+  useEffect(() => {
+    const dialog = reviewDialogRef.current;
+    if (!dialog) return;
+    if (selectedAccount && !dialog.open) dialog.showModal();
+    if (!selectedAccount && dialog.open) dialog.close();
   }, [selectedAccount]);
 
   const accounts = useMemo<DisplayAccount[]>(() => isDemo
@@ -171,15 +179,20 @@ export default function AdminPage({ authSource }: AdminPageProps) {
             </div>
           )}
 
-          {selectedAccount && (
-            <div className="selected-account">
+          <dialog
+            ref={reviewDialogRef}
+            className="admin-review-dialog"
+            aria-labelledby={selectedAccount ? 'admin-review-title' : undefined}
+            onClose={() => setSelectedAccount(null)}
+          >
+            {selectedAccount && <div className="selected-account admin-review-dialog-content">
               <div className="selected-head">
                 <div>
                   <span className="panel-kicker">{isDemo ? 'บัญชีตัวอย่าง · อ่านได้อย่างเดียว' : 'กำลังตรวจสอบบัญชี Pending'}</span>
-                  <strong>{selectedAccount.fullName || 'ไม่ระบุชื่อ'}</strong>
+                  <strong id="admin-review-title">{selectedAccount.fullName || 'ไม่ระบุชื่อ'}</strong>
                   <span>{selectedAccount.email || 'ไม่พบอีเมล'}</span>
                 </div>
-                <button type="button" className="text-button" onClick={() => setSelectedAccount(null)}>ปิด</button>
+                <button type="button" className="text-button" aria-label="ปิดหน้าต่างตรวจสอบ" onClick={() => setSelectedAccount(null)}>ปิด</button>
               </div>
               <dl className="admin-account-details">
                 <div><dt>เบอร์โทรศัพท์</dt><dd>{selectedAccount.phone || 'ไม่ระบุ'}</dd></div>
@@ -202,8 +215,8 @@ export default function AdminPage({ authSource }: AdminPageProps) {
                   <p className="admin-driving-note"><ShieldCheck size={14} />การอนุมัติบัญชีไม่เปิดสิทธิ์ขับขี่</p>
                 </div>
               ) : <div className="callout callout-info">บัญชีตัวอย่างนี้อ่านได้อย่างเดียว ไม่มีการเปลี่ยนสถานะจริง</div>}
-            </div>
-          )}
+            </div>}
+          </dialog>
         </section>
 
         <aside className="side-column">

@@ -329,6 +329,12 @@ svg { flex: none; }
 .account-status { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 5px; color: #2457a7; background: #e8f1ff; font-size: 9px; font-weight: 650; }
 .account-status.pending { color: #8c5d13; background: var(--amber-soft); }
 .account-status.suspended, .account-status.rejected { color: var(--red); background: var(--red-soft); }
+.admin-review-dialog { position: fixed; inset: 0; width: min(700px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; margin: auto; overflow: auto; overscroll-behavior: contain; border: 1px solid #dbe5f0; border-radius: 12px; color: var(--ink); background: var(--paper); box-shadow: 0 24px 80px rgba(12, 37, 63, .3); }
+.admin-review-dialog::backdrop { background: rgba(8, 27, 48, .58); backdrop-filter: blur(3px); }
+.admin-review-dialog .admin-review-dialog-content { padding: 20px; margin: 0; border: 0; border-radius: inherit; background: var(--paper); }
+.admin-review-dialog .selected-head { align-items: flex-start; }
+.admin-review-dialog .selected-head strong { font-size: 18px; }
+.admin-review-dialog .selected-head > div > span:last-child { font-size: 12px; }
 .selected-account { padding: 13px 14px; margin-top: 14px; border: 1px solid #dbe5f0; border-radius: 8px; background: #f7faff; }
 .selected-head { display: flex; justify-content: space-between; gap: 10px; }
 .selected-head > div { display: grid; }
@@ -344,11 +350,15 @@ svg { flex: none; }
 .admin-account-details > div { min-width: 0; }
 .admin-account-details dt { color: var(--muted); font-size: 9px; }
 .admin-account-details dd { margin: 2px 0 0; overflow-wrap: anywhere; font-size: 10px; font-weight: 600; }
+.admin-review-dialog .admin-account-details dt { font-size: 11px; }
+.admin-review-dialog .admin-account-details dd { font-size: 13px; }
 .admin-review-form { display: grid; gap: 10px; padding-top: 11px; border-top: 1px solid var(--line); }
 .admin-review-form .button { min-height: 42px; }
 .admin-review-field { display: grid; gap: 5px; color: var(--ink); font-size: 10px; font-weight: 650; }
+.admin-review-dialog .admin-review-field { font-size: 13px; }
 .admin-review-field b { color: var(--red); }
 .admin-review-field select, .admin-review-field textarea { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: #fff; font: inherit; font-weight: 400; }
+.admin-review-dialog .admin-review-field select { min-height: 44px; }
 .admin-review-field textarea { min-height: 68px; resize: vertical; }
 .admin-review-field :focus-visible, .admin-affiliation-check input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .admin-affiliation-check { display: flex; align-items: flex-start; gap: 8px; padding: 9px; border: 1px solid #d7e3ef; border-radius: 6px; color: #40556e; background: #f8fafc; font-size: 10px; line-height: 1.45; }
@@ -356,6 +366,7 @@ svg { flex: none; }
 .admin-decision-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .admin-decision-options .button { width: 100%; }
 .admin-driving-note { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 0; color: var(--muted); font-size: 9px; }
+.admin-review-dialog .admin-driving-note { font-size: 11px; }
 .admin-driving-note svg { flex: none; }
 .admin-disabled-fields { min-width: 0; padding: 0; margin: 0; border: 0; }
 .admin-disabled-fields:disabled { opacity: .55; }
@@ -536,6 +547,14 @@ svg { flex: none; }
   .demo-shortcut { min-height: 48px; flex-direction: row; justify-content: flex-start; gap: 9px; padding: 8px 12px; font-size: 11px; }
   .login-disclosure { justify-content: flex-start; align-items: flex-start; font-size: 10px; text-align: left; }
   .login-disclosure svg { margin-top: 1px; }
+}
+
+@media (max-width: 600px) {
+  .admin-review-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 10px; }
+  .admin-review-dialog .admin-review-dialog-content { padding: 14px; }
+  .admin-review-dialog .admin-account-details { grid-template-columns: minmax(0, 1fr); }
+  .admin-review-dialog .admin-decision-options { grid-template-columns: minmax(0, 1fr); }
+  .admin-review-dialog .admin-review-form .button { min-height: 46px; }
 }
 @media (max-width: 360px) {
   .login-main { padding-right: 11px; padding-left: 11px; }
