@@ -44,7 +44,35 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      admin_list_pending_accounts: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          account_id: string;
+          email: string;
+          full_name: string;
+          phone: string;
+          department: string;
+          requested_role: string;
+          created_at: string;
+        }[];
+      };
+      admin_review_pending_account: {
+        Args: {
+          p_account_id: string;
+          p_decision: string;
+          p_verified_role: string | null;
+          p_affiliation_verified: boolean;
+          p_reason: string | null;
+        };
+        Returns: {
+          account_id: string;
+          account_status: string;
+          role: string;
+          driving_permission: boolean;
+        }[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

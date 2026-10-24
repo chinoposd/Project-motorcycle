@@ -16,6 +16,8 @@ The app keeps its demo accounts available and uses Supabase Auth for real regist
 
 Apply `supabase/migrations/20261024062207_create_profiles.sql` to the intended Supabase project using the Supabase CLI or SQL Editor. The migration creates `public.profiles`, enables RLS, allows signed-in users to read only their own profile, and does not grant browser clients insert/update/delete privileges.
 
+To enable real Admin review of pending accounts, also apply `supabase/migrations/20261024130000_admin_account_review.sql` and provision a trusted first Admin as described in [Supabase Admin account review setup](supabase-admin-setup.md). The Admin review RPCs are not available until that migration is installed.
+
 The app reads `profiles` through Supabase's Data API. Confirm that the `public` schema is exposed in the project's Data API settings; schema exposure is separate from table grants and RLS policies. See [Supabase's API security guide](https://supabase.com/docs/guides/api/securing-your-api) and [RLS guide](https://supabase.com/docs/guides/database/postgres/row-level-security).
 
 ## Current limits
