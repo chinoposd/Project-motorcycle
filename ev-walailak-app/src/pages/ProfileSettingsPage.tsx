@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowLeft, BadgeCheck, Check, Mail, Phone, Save, ShieldCheck, UserRound } from 'lucide-react';
-import type { DemoUser } from '../auth/demoAuth';
+import type { AppUser } from '../auth/supabaseAuth';
 import type { UserProfile } from '../auth/userProfile';
 import type { UserRole } from '../types';
 import PageHeader from '../components/PageHeader';
@@ -8,16 +8,16 @@ import ProfilePhotoControl from '../components/ProfilePhotoControl';
 import ProfileAccountActions from '../components/ProfileAccountActions';
 
 interface ProfileSettingsPageProps {
-  user: DemoUser;
+  user: AppUser;
   profile: UserProfile;
-  onSave: (profile: UserProfile) => boolean;
+  onSave: (profile: UserProfile) => boolean | Promise<boolean>;
   onCancel: () => void;
   canCloseAccount: boolean;
-  onResetPassword: () => void;
+  onResetPassword: () => void | Promise<void>;
   onCloseAccount: () => boolean;
   onShowToast: (message: string) => void;
   profilePhoto: string | null;
-  onPhotoSave: (photo: string | null) => boolean;
+  onPhotoSave: (photo: string | null) => boolean | Promise<boolean>;
 }
 
 const roleLabels: Record<UserRole, string> = {
@@ -30,17 +30,25 @@ const roleLabels: Record<UserRole, string> = {
 export default function ProfileSettingsPage({ user, profile, onSave, onCancel, canCloseAccount, onResetPassword, onCloseAccount, onShowToast, profilePhoto, onPhotoSave }: ProfileSettingsPageProps) {
   const [form, setForm] = useState<{ name: string; phone: string }>({ ...profile, name: profile.name ?? user.name });
   const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const roleLabel = roleLabels[user.role];
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSaving) return;
     const profileToSave = {
       phone: form.phone.trim(),
       ...(user.role === 'Admin' ? { name: form.name.trim() } : {}),
     };
-    const didSave = onSave(profileToSave);
-    if (didSave) setForm({ ...profileToSave, name: profileToSave.name ?? form.name });
-    setSaved(didSave);
+    setIsSaving(true);
+    setSaved(false);
+    try {
+      const didSave = await onSave(profileToSave);
+      if (didSave) setForm({ ...profileToSave, name: profileToSave.name ?? form.name });
+      setSaved(didSave);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -54,7 +62,7 @@ export default function ProfileSettingsPage({ user, profile, onSave, onCancel, c
           <p>{user.email}</p>
           <div className="profile-summary-divider" />
           <div className="profile-summary-detail"><Phone size={15} aria-hidden="true" /><span>{form.phone || 'ยังไม่ได้ระบุเบอร์โทรศัพท์'}</span></div>
-          <div className="callout callout-info profile-local-note"><ShieldCheck size={15} aria-hidden="true" /><p>ข้อมูลและรูปโปรไฟล์เก็บไว้ในเบราว์เซอร์เครื่องนี้ ไม่ได้ส่งไปยังระบบบัญชีจริง</p></div>
+          <div className="callout callout-info profile-local-note"><ShieldCheck size={15} aria-hidden="true" /><p>{user.authSource === 'supabase' ? 'ข้อมูลโปรไฟล์และรูปบันทึกในบัญชี Supabase ของคุณ โดยแก้ไขได้เฉพาะข้อมูลส่วนตัว' : 'ข้อมูลและรูปโปรไฟล์เก็บไว้ในเบราว์เซอร์เครื่องนี้'}</p></div>
         </aside>
 
         <div className="profile-main-column">
@@ -68,7 +76,7 @@ export default function ProfileSettingsPage({ user, profile, onSave, onCancel, c
               <label className="profile-field" htmlFor="profile-name">
                 <span>ชื่อ–นามสกุล</span>
                 <input id="profile-name" name="name" type="text" autoComplete="name" maxLength={80} required value={form.name} onChange={(event) => { setForm({ ...form, name: event.target.value }); setSaved(false); }} />
-                <small>การเปลี่ยนชื่อจะบันทึก Audit Log ในข้อมูลตัวอย่าง</small>
+                <small>{user.authSource === 'supabase' ? 'ชื่อจะแสดงในบัญชีของคุณหลังบันทึก' : 'การเปลี่ยนชื่อจะบันทึก Audit Log ในข้อมูลตัวอย่าง'}</small>
               </label>
             ) : (
               <div className="profile-field">
@@ -90,14 +98,14 @@ export default function ProfileSettingsPage({ user, profile, onSave, onCancel, c
               <span>บทบาทในระบบ</span>
               <div className="profile-readonly-field role-readonly"><BadgeCheck size={15} aria-hidden="true" /><span>{user.role} · {roleLabel}</span><small>กำหนดจากสิทธิ์บัญชี</small></div>
             </div>
-            {saved && <p className="profile-save-status" role="status"><Check size={15} aria-hidden="true" /> บันทึกข้อมูลในเบราว์เซอร์นี้แล้ว</p>}
+            {saved && <p className="profile-save-status" role="status"><Check size={15} aria-hidden="true" /> {user.authSource === 'supabase' ? 'บันทึกข้อมูลโปรไฟล์แล้ว' : 'บันทึกข้อมูลในเบราว์เซอร์นี้แล้ว'}</p>}
             <div className="profile-form-actions">
-              <button className="button button-outline" type="button" onClick={onCancel}><ArrowLeft size={15} />กลับหน้าหลัก</button>
-              <button className="button button-primary" type="submit"><Save size={15} />บันทึกข้อมูล</button>
+              <button className="button button-outline" type="button" disabled={isSaving} onClick={onCancel}><ArrowLeft size={15} />กลับหน้าหลัก</button>
+              <button className="button button-primary" type="submit" disabled={isSaving}><Save size={15} />{isSaving ? 'กำลังบันทึก…' : 'บันทึกข้อมูล'}</button>
             </div>
           </form>
         </section>
-      <ProfileAccountActions canCloseAccount={canCloseAccount} onResetPassword={onResetPassword} onCloseAccount={onCloseAccount} onShowToast={onShowToast} />
+      <ProfileAccountActions isRealAccount={user.authSource === 'supabase'} canCloseAccount={canCloseAccount} onResetPassword={onResetPassword} onCloseAccount={onCloseAccount} onShowToast={onShowToast} />
         </div>
       </div>
     </>

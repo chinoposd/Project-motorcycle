@@ -7,12 +7,13 @@ const MAX_SOURCE_IMAGE_BYTES = 25 * 1024 * 1024;
 interface ProfilePhotoControlProps {
   photo: string | null;
   name: string;
-  onSave: (photo: string | null) => boolean;
+  onSave: (photo: string | null) => boolean | Promise<boolean>;
 }
 
 export default function ProfilePhotoControl({ photo, name, onSave }: ProfilePhotoControlProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -28,14 +29,30 @@ export default function ProfilePhotoControl({ photo, name, onSave }: ProfilePhot
     }
 
     try {
+      setIsSaving(true);
+      setError('');
       const compressedPhoto = await compressProfilePhoto(file);
-      if (!onSave(compressedPhoto)) {
-        setError('บันทึกรูปไม่สำเร็จ · พื้นที่จัดเก็บในเบราว์เซอร์อาจไม่เพียงพอ');
+      if (!await onSave(compressedPhoto)) {
+        setError('บันทึกรูปไม่สำเร็จ · กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่');
         return;
       }
       setError('');
     } catch {
-      setError('เปิดไฟล์รูปนี้ไม่ได้ กรุณาเลือกรูปอื่น');
+      setError('บันทึกรูปไม่สำเร็จ · กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleRemovePhoto() {
+    setIsSaving(true);
+    setError('');
+    try {
+      if (!await onSave(null)) setError('ลบรูปไม่สำเร็จ · กรุณาลองอีกครั้ง');
+    } catch {
+      setError('ลบรูปไม่สำเร็จ · กรุณาลองอีกครั้ง');
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -44,10 +61,10 @@ export default function ProfilePhotoControl({ photo, name, onSave }: ProfilePhot
       <div className="manager-profile-avatar">
         {photo ? <img src={photo} alt={`รูปโปรไฟล์ ${name}`} /> : <UserRound size={29} aria-hidden="true" />}
       </div>
-      <input ref={fileInput} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" aria-label="เลือกรูปโปรไฟล์" onChange={handleFileChange} />
+      <input ref={fileInput} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" aria-label="เลือกรูปโปรไฟล์" disabled={isSaving} onChange={handleFileChange} />
       <div className="profile-photo-actions">
-        <button className="button button-outline" type="button" onClick={() => fileInput.current?.click()}><Camera size={14} aria-hidden="true" />เปลี่ยนรูป</button>
-        {photo && <button className="profile-photo-remove" type="button" onClick={() => { if (onSave(null)) setError(''); else setError('ลบรูปไม่สำเร็จ · กรุณาลองอีกครั้ง'); }}><Trash2 size={14} aria-hidden="true" />ลบรูป</button>}
+        <button className="button button-outline" type="button" disabled={isSaving} onClick={() => fileInput.current?.click()}><Camera size={14} aria-hidden="true" />{isSaving ? 'กำลังบันทึก…' : 'เปลี่ยนรูป'}</button>
+        {photo && <button className="profile-photo-remove" type="button" disabled={isSaving} onClick={() => { void handleRemovePhoto(); }}><Trash2 size={14} aria-hidden="true" />ลบรูป</button>}
       </div>
       <small className="profile-photo-hint">JPG, PNG หรือ WebP · ไฟล์ต้นฉบับไม่เกิน 25 MB</small>
       {error && <small className="profile-photo-error" role="alert">{error}</small>}
