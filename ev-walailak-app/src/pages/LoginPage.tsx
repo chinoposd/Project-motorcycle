@@ -17,6 +17,8 @@ import {
   getDemoCredentials,
   type DemoUser,
 } from '../auth/demoAuth';
+import { getSupabaseAuthErrorMessage, signInWithSupabase } from '../auth/supabaseAuth';
+import { supabaseConfig } from '../auth/supabaseClient';
 import type { UserRole } from '../types';
 
 interface LoginPageProps {
@@ -53,12 +55,23 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
     setError('');
     setIsSubmitting(true);
     try {
+      if (supabaseConfig.mode === 'configured') {
+        const result = await signInWithSupabase(email, password);
+        if (result.user) return;
+        if (result.error && result.error !== 'invalid-credentials') {
+          setError(getSupabaseAuthErrorMessage(result.error));
+          return;
+        }
+      }
+
       const user = await authenticateUser(email, password);
       if (!user) {
         setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
         return;
       }
       onLogin(user);
+    } catch {
+      setError(getSupabaseAuthErrorMessage('request-failed'));
     } finally {
       setIsSubmitting(false);
     }

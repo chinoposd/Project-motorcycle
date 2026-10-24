@@ -627,10 +627,15 @@ svg { flex: none; }
 .register-feedback > div { display: grid; gap: 2px; }
 .register-feedback strong { font-size: 13px; }
 .register-feedback span { color: #4b7460; font-size: 12px; }
+.register-feedback-confirmation { border-color: #bad9ed; color: #245879; background: #eff8fd; }
+.register-feedback-confirmation span { color: #526f82; }
+.register-feedback-error { border-color: #efc2c0; color: #8f302d; background: #fff4f3; }
+.register-feedback-error span { color: #80504e; }
 .register-actions { display: grid; grid-template-columns: minmax(100px,.7fr) minmax(0,1.5fr); gap: 10px; padding-top: 2px; }
 .register-actions .button { min-height: 48px; font-size: 14px; }
 .register-submit { border-color: var(--navy-deep); background: var(--navy-deep); }
 .register-submit:hover:not(:disabled) { border-color: #0a3b59; background: #0a3b59; }
+.register-submit:disabled { cursor: wait; opacity: .72; }
 .register-privacy-note { display: flex; align-items: center; justify-content: center; gap: 6px; margin: -5px 0 0; color: #8293a0; font-size: 11px; text-align: center; }
 .register-info-panel { position: relative; min-width: 0; display: flex; align-items: center; overflow: hidden; padding: 36px 48px; color: #fff; background: radial-gradient(ellipse at 62% 54%,rgba(51,119,178,.62) 0%,rgba(27,75,126,.25) 38%,transparent 67%),linear-gradient(145deg,#1c4a79 0%,#17365d 55%,#102b4c 100%); }
 .register-info-panel::before { position: absolute; inset: 0; background: linear-gradient(110deg,transparent 30%,rgba(132,190,240,.06) 58%,transparent 82%); content: ""; pointer-events: none; }
