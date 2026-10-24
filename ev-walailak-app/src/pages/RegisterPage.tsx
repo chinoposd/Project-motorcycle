@@ -61,7 +61,9 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
     const previousOverflow = document.body.style.overflow;
     const dialog = dialogRef.current;
     document.body.style.overflow = 'hidden';
-    dialog?.querySelector<HTMLInputElement>('#register-first-name')?.focus();
+    dialog?.querySelector<HTMLInputElement>('#register-first-name')?.focus({ preventScroll: true });
+    dialog?.querySelector<HTMLElement>('.register-form-column')?.scrollTo({ top: 0, left: 0 });
+    dialog?.closest<HTMLElement>('.register-backdrop')?.scrollTo({ top: 0, left: 0 });
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
