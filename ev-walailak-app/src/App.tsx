@@ -57,11 +57,23 @@ export default function App() {
     if (!supabase) return undefined;
     let mounted = true;
 
-    async function restoreCloudSession() {
-      const requestEpoch = authRequestEpochRef.current.begin();
+    function clearCloudIdentity() {
+      if (currentUserRef.current?.authSource !== 'supabase') return;
+      currentUserRef.current = null;
+      setUser(null);
+      setProfilePhoto(null);
+      setSessionStatus('idle');
+      navigatePage('home');
+    }
+
+    async function resolveCloudSession(requestEpoch: number, expectedUserId?: string) {
       try {
         const result = await getCurrentSupabaseUser();
         if (!mounted || !authRequestEpochRef.current.isCurrent(requestEpoch)) return;
+        if (result.user && expectedUserId && result.user.id !== expectedUserId) {
+          clearCloudIdentity();
+          return;
+        }
         if (result.user) {
           clearDemoSession();
           const shouldResetPage = shouldResetPageForAuthUpdate(currentUserRef.current, result.user, currentPageRef.current);
@@ -74,50 +86,44 @@ export default function App() {
           }
           setManagerProfile({ name: 'ผู้จัดการระบบ', phone: '', department: 'ระบบบริหารยานพาหนะไฟฟ้า' });
         } else if (result.error === 'profile-missing' || result.error === 'profile-invalid') {
-          await signOutSupabase();
+          clearCloudIdentity();
+          await signOutSupabase().catch(() => undefined);
         }
+      } catch {
+        // A changed identity was cleared before starting the lookup. Network
+        // failure must not restore it or produce an unhandled rejection.
       } finally {
         if (mounted && authRequestEpochRef.current.isCurrent(requestEpoch)) setIsRestoringAuth(false);
       }
     }
 
+    // Start the fallback restore first so even a synchronous initial auth event
+    // advances the epoch beyond it and remains authoritative.
+    void resolveCloudSession(authRequestEpochRef.current.begin());
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
+      if (!mounted) return;
+      if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
         authRequestEpochRef.current.invalidate();
-        if (currentUserRef.current?.authSource === 'supabase') {
-          currentUserRef.current = null;
-          setUser(null);
-          setProfilePhoto(null);
-          setSessionStatus('idle');
-          navigatePage('home');
-        }
+        clearCloudIdentity();
         setIsRestoringAuth(false);
         return;
       }
-      if (event !== 'SIGNED_IN' || !session) return;
+      // Refreshes, user updates, and initial sessions all supersede earlier
+      // lookups, even when Supabase emits multiple events for the same user.
+      if (!session) return;
       const requestEpoch = authRequestEpochRef.current.begin();
+      const expectedUserId = session.user.id;
+      const sameIdentity = currentUserRef.current?.authSource === 'supabase'
+        && currentUserRef.current.id === expectedUserId;
+      if (!sameIdentity) {
+        clearCloudIdentity();
+        setIsRestoringAuth(true);
+      }
       queueMicrotask(() => {
-        void getCurrentSupabaseUser().then((result) => {
-          if (!mounted || !authRequestEpochRef.current.isCurrent(requestEpoch)) return;
-          if (result.user) {
-            clearDemoSession();
-            const shouldResetPage = shouldResetPageForAuthUpdate(currentUserRef.current, result.user, currentPageRef.current);
-            currentUserRef.current = result.user;
-            setUser(result.user);
-            setProfilePhoto(readProfilePhoto(result.user.id));
-            if (shouldResetPage) {
-              navigatePage(getPageForAuthUpdate(result.user));
-              setSessionStatus('idle');
-            }
-          } else if (result.error === 'profile-missing' || result.error === 'profile-invalid') {
-            void signOutSupabase();
-          }
-        }).catch(() => undefined).finally(() => {
-          if (mounted && authRequestEpochRef.current.isCurrent(requestEpoch)) setIsRestoringAuth(false);
-        });
+        if (!mounted || !authRequestEpochRef.current.isCurrent(requestEpoch)) return;
+        void resolveCloudSession(requestEpoch, expectedUserId);
       });
     });
-    void restoreCloudSession();
 
     return () => {
       mounted = false;
