@@ -563,6 +563,20 @@ svg { flex: none; }
 .profile-close-confirm p { margin: 7px 0 12px; color: #6d4b4a; font-size: 10px; }
 .profile-close-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .login-notice { padding: 10px 12px; margin: -9px 0 16px; border: 1px solid #c7d9ef; border-radius: 7px; color: #315b87; background: #edf4fd; font-size: 11px; }
+.account-status-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg); }
+.account-status-card { width: min(100%, 540px); padding: clamp(24px, 4vw, 38px); border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: var(--shadow); text-align: center; }
+.account-status-icon { width: 54px; height: 54px; display: grid; place-items: center; margin: 0 auto 14px; border-radius: 50%; color: var(--blue); background: var(--blue-soft); }
+.account-status-kicker { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; color: var(--muted); font-size: 11px; }
+.account-status-card h1 { margin: 0; color: var(--navy-deep); font-size: 23px; }
+.account-status-description { max-width: 50ch; margin: 9px auto 19px; color: var(--muted); font-size: 12px; }
+.account-status-details { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: #f8fbff; text-align: left; }
+.account-status-details div { min-width: 0; }
+.account-status-details dt { color: var(--muted); font-size: 10px; }
+.account-status-details dd { overflow-wrap: anywhere; margin: 2px 0 0; color: var(--ink); font-size: 11px; font-weight: 650; }
+.account-status-logout { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; margin-top: 18px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: #fff; font-size: 11px; font-weight: 650; }
+.account-status-logout:hover { border-color: #a9c5eb; color: var(--blue); background: #f5f9ff; }
+.account-status-footnote { margin: 13px 0 0; color: var(--muted); font-size: 10px; }
+.auth-loading { min-height: 100vh; display: grid; place-items: center; color: var(--muted); background: var(--bg); font-size: 13px; }
 @media (max-width: 760px) {
   .manager-profile-layout { grid-template-columns: minmax(0, 1fr); }
   .manager-profile-summary { display: grid; justify-items: center; }

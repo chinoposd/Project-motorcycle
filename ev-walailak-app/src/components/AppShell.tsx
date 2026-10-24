@@ -11,6 +11,7 @@ const navItems: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = 
 ];
 
 interface AppShellProps {
+  authSource: 'demo' | 'supabase';
   page: PageId;
   profilePhoto: string | null;
   onNavigate: (page: PageId) => void;
@@ -26,7 +27,7 @@ const roleLabels = {
   Admin: 'ผู้ดูแลระบบ',
 } as const;
 
-export default function AppShell({ page, profilePhoto, onNavigate, onLogout, user, children }: AppShellProps) {
+export default function AppShell({ authSource, page, profilePhoto, onNavigate, onLogout, user, children }: AppShellProps) {
   const identity = { initial: user.name.slice(0, 1), label: `${user.name} · ${roleLabels[user.role]}` };
   const profilePage: PageId = user.role === 'Manager' ? 'manager-profile' : 'profile-settings';
   const visibleNavItems = navItems.filter(({ id }) => isPageAllowed(user.role, id));
@@ -72,7 +73,7 @@ export default function AppShell({ page, profilePhoto, onNavigate, onLogout, use
       </header>
 
       <main className="main-content">
-        <div className="prototype-note"><LockKeyhole size={14} aria-hidden="true" /><span>ข้อมูลตัวอย่าง · ยังไม่เชื่อมต่อรถหรือบัญชีจริง</span></div>
+        <div className="prototype-note"><LockKeyhole size={14} aria-hidden="true" /><span>{authSource === 'supabase' ? 'ข้อมูลรถและ Session เป็นข้อมูลตัวอย่าง · บัญชีเชื่อมต่อ Supabase' : 'ข้อมูลตัวอย่าง · ยังไม่เชื่อมต่อรถหรือบัญชีจริง'}</span></div>
         {children}
       </main>
       <footer className="site-footer">
