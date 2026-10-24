@@ -12,6 +12,7 @@ test('login renders demo shortcuts without account switching or the real-login l
 
     assert.doesNotMatch(html, /auth-mode-switch|เลือกประเภทบัญชี/);
     assert.doesNotMatch(html, /เข้าสู่ระบบบัญชีจริง/);
+    assert.match(html, /<input(?=[^>]*id="login-password")(?=[^>]*placeholder="xxxxxxxx")[^>]*>/);
     assert.match(html, /บัญชีทดลอง/);
     for (const label of ['นักศึกษา', 'บุคลากร', 'ผู้จัดการ', 'ผู้ดูแลระบบ']) {
       assert.ok(html.includes(label), `Expected the original ${label} shortcut to render`);
