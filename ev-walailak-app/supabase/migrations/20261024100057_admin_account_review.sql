@@ -178,4 +178,3 @@ revoke all on function public.admin_list_pending_accounts() from public, anon, a
 revoke all on function public.admin_review_pending_account(uuid, text, text, boolean, text) from public, anon, authenticated;
 grant execute on function public.admin_list_pending_accounts() to authenticated;
 grant execute on function public.admin_review_pending_account(uuid, text, text, boolean, text) to authenticated;
-
