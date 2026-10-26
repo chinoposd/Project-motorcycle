@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AuthRequestEpoch } from './auth/authRequestEpoch';
 import { requiresApprovalGate } from './auth/accountAccess';
 import { getPageForAuthUpdate, shouldResetPageForAuthUpdate } from './auth/authSessionPolicy';
@@ -10,17 +10,20 @@ import { readManagerProfile, writeManagerProfile, type ManagerProfile } from './
 import { readUserProfile, writeUserProfile } from './auth/userProfile';
 import { readProfilePhoto, writeProfilePhoto } from './auth/profilePhoto';
 import AppShell from './components/AppShell';
-import AdminPage from './pages/AdminPage';
-import ApprovalStatusPage from './pages/ApprovalStatusPage';
-import LoginPage from './pages/LoginPage';
-import ManagerPage from './pages/ManagerPage';
-import ManagerProfilePage from './pages/ManagerProfilePage';
-import ProfileSettingsPage from './pages/ProfileSettingsPage';
-import OverviewPage from './pages/OverviewPage';
-import PasswordRecoveryPage from './pages/PasswordRecoveryPage';
-import RidePage from './pages/RidePage';
 import { initialAlerts } from './data/mockData';
 import type { AlertRecord, ManagerView, PageId, SessionStatus } from './types';
+
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const ApprovalStatusPage = lazy(() => import('./pages/ApprovalStatusPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ManagerPage = lazy(() => import('./pages/ManagerPage'));
+const ManagerProfilePage = lazy(() => import('./pages/ManagerProfilePage'));
+const ProfileSettingsPage = lazy(() => import('./pages/ProfileSettingsPage'));
+const OverviewPage = lazy(() => import('./pages/OverviewPage'));
+const PasswordRecoveryPage = lazy(() => import('./pages/PasswordRecoveryPage'));
+const RidePage = lazy(() => import('./pages/RidePage'));
+
+const appPageFallback = <div className="page-loading" role="status" aria-live="polite">กำลังโหลดหน้า…</div>;
 
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(() => {
@@ -363,18 +366,32 @@ export default function App() {
   }
 
   if (isRestoringAuth) return <main className="auth-loading" role="status">กำลังตรวจสอบบัญชี…</main>;
-  if (isPasswordRecovery) return <PasswordRecoveryPage onSave={async (password) => (await updateSupabasePassword(password)).ok} onComplete={handlePasswordRecoveryComplete} onCancel={handleLogout} />;
-  if (!user) return <LoginPage onLogin={handleLogin} notice={toast} />;
-  if (requiresApprovalGate(user)) return <ApprovalStatusPage user={user} onLogout={handleLogout} />;
+  if (isPasswordRecovery) return (
+    <Suspense fallback={<main className="auth-loading" role="status">กำลังเปิดหน้าเปลี่ยนรหัสผ่าน…</main>}>
+      <PasswordRecoveryPage onSave={async (password) => (await updateSupabasePassword(password)).ok} onComplete={handlePasswordRecoveryComplete} onCancel={handleLogout} />
+    </Suspense>
+  );
+  if (!user) return (
+    <Suspense fallback={<main className="auth-loading" role="status">กำลังเปิดหน้าเข้าสู่ระบบ…</main>}>
+      <LoginPage onLogin={handleLogin} notice={toast} />
+    </Suspense>
+  );
+  if (requiresApprovalGate(user)) return (
+    <Suspense fallback={<main className="auth-loading" role="status">กำลังตรวจสอบสิทธิ์บัญชี…</main>}>
+      <ApprovalStatusPage user={user} onLogout={handleLogout} />
+    </Suspense>
+  );
 
   return (
     <AppShell authSource={user.authSource} page={page} breadcrumbLabel={page === 'manager' ? (managerView === 'overview' ? 'ภาพรวมการปฏิบัติงาน' : 'ขับขี่รถ') : undefined} breadcrumbParent={page === 'manager' && managerView === 'ride' ? { label: 'ภาพรวมการปฏิบัติงาน', onNavigate: () => setManagerView('overview') } : undefined} user={user} profilePhoto={profilePhoto} onNavigate={handleNavigate} onLogout={handleLogout}>
-      {page === 'home' && <OverviewPage sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
-      {page === 'ride' && <RidePage status={sessionStatus} onPauseResume={handleStartPause} onEnd={handleEndSession} onShowToast={showToast} />}
-      {page === 'manager' && <ManagerPage view={managerView} onViewChange={setManagerView} alerts={alerts} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
-      {page === 'manager-profile' && user.role === 'Manager' && <ManagerProfilePage user={user} profile={managerProfile} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleManagerProfileSave} onCancel={() => handleNavigate('manager')} canCloseAccount={sessionStatus === 'idle'} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
-      {page === 'profile-settings' && user.role !== 'Manager' && <ProfileSettingsPage user={user} profile={user.authSource === 'supabase' ? { name: user.name, phone: user.phone ?? '' } : readUserProfile(user.id)} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleNavigate(getLandingPage(user.role))} canCloseAccount={user.authSource === 'demo' && (user.role === 'Admin' || sessionStatus === 'idle')} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
-      {page === 'admin' && <AdminPage authSource={user.authSource} />}
+      <Suspense fallback={appPageFallback}>
+        {page === 'home' && <OverviewPage sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
+        {page === 'ride' && <RidePage status={sessionStatus} onPauseResume={handleStartPause} onEnd={handleEndSession} onShowToast={showToast} />}
+        {page === 'manager' && <ManagerPage view={managerView} onViewChange={setManagerView} alerts={alerts} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
+        {page === 'manager-profile' && user.role === 'Manager' && <ManagerProfilePage user={user} profile={managerProfile} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleManagerProfileSave} onCancel={() => handleNavigate('manager')} canCloseAccount={sessionStatus === 'idle'} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
+        {page === 'profile-settings' && user.role !== 'Manager' && <ProfileSettingsPage user={user} profile={user.authSource === 'supabase' ? { name: user.name, phone: user.phone ?? '' } : readUserProfile(user.id)} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleNavigate(getLandingPage(user.role))} canCloseAccount={user.authSource === 'demo' && (user.role === 'Admin' || sessionStatus === 'idle')} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
+        {page === 'admin' && <AdminPage authSource={user.authSource} />}
+      </Suspense>
       <div className={`toast${toast ? ' visible' : ''}`} role="status" aria-live="polite">{toast}</div>
     </AppShell>
   );
