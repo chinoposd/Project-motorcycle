@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   Bike,
   BriefcaseBusiness,
@@ -11,18 +11,19 @@ import {
   UsersRound,
 } from 'lucide-react';
 import RegisterPage from './RegisterPage';
+import PasswordRecoveryPage from './PasswordRecoveryPage';
 import {
   authenticateUser,
   DEMO_ROLE_SHORTCUTS,
   getDemoCredentials,
-  type DemoUser,
 } from '../auth/demoAuth';
-import { getSupabaseAuthErrorMessage, signInWithSupabase } from '../auth/supabaseAuth';
+import { signInWithSupabase, type AppUser } from '../auth/supabaseAuth';
 import { supabaseConfig } from '../auth/supabaseClient';
 import type { UserRole } from '../types';
 
 interface LoginPageProps {
-  onLogin: (user: DemoUser) => void;
+  onLogin: (user: AppUser) => void;
+  onPasswordUpdated: () => void;
   notice?: string;
 }
 
@@ -33,14 +34,36 @@ const roleIcons: Record<UserRole, typeof GraduationCap> = {
   Admin: Settings,
 };
 
-export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
+export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: LoginPageProps) {
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(() => window.location.pathname === '/ForgotPassword');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    function syncRecoveryRoute() {
+      setIsRecoveryOpen(window.location.pathname === '/ForgotPassword');
+    }
+    window.addEventListener('popstate', syncRecoveryRoute);
+    return () => window.removeEventListener('popstate', syncRecoveryRoute);
+  }, []);
+
+  function openRecoveryPage() {
+    window.history.pushState({ authPage: 'forgot-password' }, '', '/ForgotPassword');
+    setIsRecoveryOpen(true);
+    setError('');
+  }
+
+  function returnToLoginPage() {
+    if (window.location.pathname === '/ForgotPassword') {
+      window.history.replaceState({}, '', `/LoginPage${window.location.search}${window.location.hash}`);
+    }
+    setIsRecoveryOpen(false);
+  }
 
   function handleShortcut(role: UserRole) {
     const credentials = getDemoCredentials(role);
@@ -55,23 +78,25 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
     setError('');
     setIsSubmitting(true);
     try {
-      if (supabaseConfig.mode === 'configured') {
-        const result = await signInWithSupabase(email, password);
-        if (result.user) return;
-        if (result.error && result.error !== 'invalid-credentials') {
-          setError(getSupabaseAuthErrorMessage(result.error));
-          return;
-        }
-      }
-
-      const user = await authenticateUser(email, password);
-      if (!user) {
-        setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+      const demoUser = await authenticateUser(email, password);
+      if (demoUser) {
+        onLogin({ ...demoUser, authSource: 'demo' });
         return;
       }
-      onLogin(user);
+      if (supabaseConfig.mode === 'configured') {
+        const result = await signInWithSupabase(email, password);
+        if (result.user) {
+          onLogin(result.user);
+          return;
+        }
+        setError(result.error === 'email-unverified' ? 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'
+          : result.error === 'request-failed' ? 'เชื่อมต่อระบบบัญชีไม่สำเร็จ · ตรวจเครือข่ายแล้วลองใหม่'
+            : 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+        return;
+      }
+      setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
     } catch {
-      setError(getSupabaseAuthErrorMessage('request-failed'));
+      setError('เข้าสู่ระบบไม่สำเร็จ · ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง');
     } finally {
       setIsSubmitting(false);
     }
@@ -87,6 +112,10 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
     setPassword(value);
     setSelectedRole(null);
     setError('');
+  }
+
+  if (isRecoveryOpen) {
+    return <PasswordRecoveryPage mode="request" onClose={returnToLoginPage} onPasswordUpdated={onPasswordUpdated} />;
   }
 
   return (
@@ -159,6 +188,8 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
               </span>
             </label>
 
+            <button className="login-forgot-button" type="button" onClick={openRecoveryPage}>ลืมรหัสผ่าน?</button>
+
             {error ? <p className="login-error" id="login-error" role="alert">{error}</p> : null}
 
             <button className="login-submit" type="submit" disabled={isSubmitting}>
@@ -203,7 +234,7 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
           <p className="login-disclosure"><LockKeyhole size={14} aria-hidden="true" /><span>บัญชีทดลองบันทึกเฉพาะเบราว์เซอร์นี้ · ไม่ใช่ระบบยืนยันตัวตนจริง</span></p>
         </section>
       </main>
-      {isRegisterOpen && <RegisterPage onClose={() => setIsRegisterOpen(false)} />}
+      {isRegisterOpen && <RegisterPage onClose={() => setIsRegisterOpen(false)} onLogin={onLogin} />}
     </div>
   );
 }

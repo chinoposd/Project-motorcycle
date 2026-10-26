@@ -1,72 +1,85 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, BadgeCheck, Check, CircleAlert, FileClock, LoaderCircle, RefreshCw, Search, ShieldCheck, UserRoundCheck, UserRoundX } from 'lucide-react';
+import { BadgeCheck, Check, CircleAlert, LoaderCircle, RefreshCw, Search, ShieldCheck, UserRoundCheck, UserRoundX } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { initialAccounts } from '../data/mockData';
-import type { AdminAccount, ApplicantRole, ReviewDecision } from '../auth/adminAccountReview';
-import { listPendingAdminAccounts, reviewPendingAdminAccount } from '../auth/adminAccountReview';
-import type { AccountRecord, UserStatus } from '../types';
+import type { ApplicantRole, ReviewDecision } from '../auth/adminAccountReview';
+import { reviewPendingAdminAccount } from '../auth/adminAccountReview';
+import { listAllAdminAccounts, updateAdminAccount, type AccountAction, type ManagedAccount } from '../auth/adminAccounts';
+import AdminPortalPanels from './AdminPortalPanels';
+import type { AccountRecord, UserRole, UserStatus } from '../types';
 
 interface AdminPageProps {
   authSource: 'demo' | 'supabase';
+  currentAdminId: string;
+  onShowToast: (message: string) => void;
 }
 
-type DisplayAccount = Omit<AdminAccount, 'requestedRole'> & { requestedRole: string; status: UserStatus };
-
 const filters: ('ทั้งหมด' | UserStatus)[] = ['ทั้งหมด', 'Pending', 'Approved', 'Rejected', 'Suspended'];
-const demoAccounts: DisplayAccount[] = initialAccounts.map((account: AccountRecord) => ({
+const roles: UserRole[] = ['Student', 'Employee', 'Manager', 'Admin'];
+const demoAccounts: ManagedAccount[] = initialAccounts.map((account: AccountRecord) => ({
   id: account.id,
   email: account.email,
   fullName: account.name,
   phone: '',
   department: '',
-  requestedRole: account.role,
+  requestedRole: account.role === 'Employee' ? 'Employee' : 'Student',
+  role: account.role,
   createdAt: '',
+  updatedAt: '',
   status: account.status,
+  statusReason: '',
+  drivingPermission: false,
+  inductionConfirmed: false,
 }));
 
-export default function AdminPage({ authSource }: AdminPageProps) {
+export default function AdminPage({ authSource, currentAdminId, onShowToast }: AdminPageProps) {
   const isDemo = authSource === 'demo';
-  const [pendingAccounts, setPendingAccounts] = useState<AdminAccount[]>([]);
+  const [managedAccounts, setManagedAccounts] = useState<ManagedAccount[]>([]);
   const [listState, setListState] = useState<'loading' | 'ready' | 'error'>(isDemo ? 'ready' : 'loading');
   const [listError, setListError] = useState('');
   const [filter, setFilter] = useState<(typeof filters)[number]>('ทั้งหมด');
   const [query, setQuery] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState<DisplayAccount | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<ManagedAccount | null>(null);
   const [verifiedRole, setVerifiedRole] = useState<ApplicantRole>('Student');
   const [affiliationVerified, setAffiliationVerified] = useState(false);
   const [decision, setDecision] = useState<ReviewDecision | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState('');
+  const [accountAction, setAccountAction] = useState<AccountAction | 'promote_manager' | null>(null);
+  const [actionValue, setActionValue] = useState('');
+  const [actionReason, setActionReason] = useState('');
+  const [inductionConfirmed, setInductionConfirmed] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const reviewDialogRef = useRef<HTMLDialogElement>(null);
 
-  const loadPendingAccounts = useCallback(async () => {
+  const loadAccounts = useCallback(async () => {
     setListState('loading');
     setListError('');
-    const result = await listPendingAdminAccounts();
+    const result = await listAllAdminAccounts();
     if (result.error !== null) {
-      setPendingAccounts([]);
+      setManagedAccounts([]);
+      setSelectedAccount(null);
       setListState('error');
       setListError(result.error);
       return;
     }
-    setPendingAccounts(result.data);
-    setSelectedAccount((previous) => previous && !result.data.some((account) => account.id === previous.id)
-      ? null
-      : previous);
+    setManagedAccounts(result.data);
+    setSelectedAccount((previous) => previous ? result.data.find((account) => account.id === previous.id) ?? null : null);
     setListState('ready');
   }, []);
 
   useEffect(() => {
     if (isDemo) {
-      setPendingAccounts([]);
+      setManagedAccounts([]);
       setListState('ready');
       setListError('');
       return;
     }
-    void loadPendingAccounts();
-  }, [isDemo, loadPendingAccounts]);
+    setManagedAccounts([]);
+    setSelectedAccount(null);
+    void loadAccounts();
+  }, [isDemo, loadAccounts, currentAdminId]);
 
   useEffect(() => {
     if (selectedAccount) return;
@@ -75,6 +88,10 @@ export default function AdminPage({ authSource }: AdminPageProps) {
     setDecision(null);
     setRejectionReason('');
     setReviewError('');
+    setAccountAction(null);
+    setActionValue('');
+    setActionReason('');
+    setInductionConfirmed(false);
   }, [selectedAccount]);
 
   useEffect(() => {
@@ -84,19 +101,21 @@ export default function AdminPage({ authSource }: AdminPageProps) {
     if (!selectedAccount && dialog.open) dialog.close();
   }, [selectedAccount]);
 
-  const accounts = useMemo<DisplayAccount[]>(() => isDemo
+  const accounts = useMemo<ManagedAccount[]>(() => isDemo
     ? demoAccounts
-    : pendingAccounts.map((account) => ({ ...account, status: 'Pending' })), [isDemo, pendingAccounts]);
+    : managedAccounts, [isDemo, managedAccounts]);
+
+  const pendingCount = accounts.filter((account) => account.status === 'Pending').length;
 
   const visibleAccounts = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('th');
-    return accounts.filter((account) => (isDemo && filter !== 'ทั้งหมด' ? account.status === filter : true)
+    return accounts.filter((account) => (filter === 'ทั้งหมด' || account.status === filter)
       && (!normalizedQuery
         || (account.fullName + ' ' + account.email + ' ' + account.phone + ' ' + account.department)
           .toLocaleLowerCase('th').includes(normalizedQuery)));
-  }, [accounts, filter, isDemo, query]);
+  }, [accounts, filter, query]);
 
-  function selectAccount(account: DisplayAccount) {
+  function selectAccount(account: ManagedAccount) {
     setSelectedAccount(account);
     setVerifiedRole(account.requestedRole === 'Employee' ? 'Employee' : 'Student');
     setAffiliationVerified(false);
@@ -104,6 +123,10 @@ export default function AdminPage({ authSource }: AdminPageProps) {
     setRejectionReason('');
     setReviewError('');
     setSuccessMessage('');
+    setAccountAction(null);
+    setActionValue('');
+    setActionReason('');
+    setInductionConfirmed(false);
   }
 
   async function submitReview() {
@@ -128,54 +151,91 @@ export default function AdminPage({ authSource }: AdminPageProps) {
       return;
     }
 
-    setPendingAccounts((previous) => previous.filter((account) => account.id !== result.data.accountId));
     setSelectedAccount(null);
     setSuccessMessage(result.data.status === 'Approved'
       ? 'อนุมัติบัญชีเป็น ' + result.data.role + ' แล้ว · สิทธิ์ขับขี่ยังคงสถานะเดิม'
       : 'ปฏิเสธบัญชีแล้ว · บันทึกเหตุผลการตรวจสอบเรียบร้อย');
-    void loadPendingAccounts();
+    void loadAccounts();
+  }
+
+  async function submitAccountAction() {
+    if (!selectedAccount || !accountAction || isDemo || submitting) return;
+    const promotingManager = accountAction === 'promote_manager';
+    if (actionReason.trim().length < 5) { setReviewError('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร'); return; }
+    if (promotingManager && (selectedAccount.status !== 'Approved'
+      || (selectedAccount.role !== 'Student' && selectedAccount.role !== 'Employee')
+      || selectedAccount.id === currentAdminId)) {
+      setReviewError('แต่งตั้ง Manager ได้เฉพาะบัญชี Student หรือ Employee ที่อนุมัติแล้ว'); return;
+    }
+    if (accountAction === 'rename' && (!actionValue.trim() || actionValue.trim() === selectedAccount.fullName)) {
+      setReviewError('ระบุชื่อใหม่ที่ต่างจากชื่อเดิม'); return;
+    }
+    if (accountAction === 'change_role' && actionValue === selectedAccount.role) {
+      setReviewError('เลือกบทบาทใหม่ที่ต่างจากเดิม'); return;
+    }
+    if (accountAction === 'grant_driving' && !inductionConfirmed) {
+      setReviewError('ต้องยืนยันว่าทีมงานตรวจการผ่านการแนะนำแล้ว'); return;
+    }
+    if ((accountAction === 'suspend' || promotingManager || (accountAction === 'change_role' && (actionValue === 'Admin' || actionValue === 'Manager')))
+      && !window.confirm(accountAction === 'suspend'
+        ? 'ยืนยันระงับบัญชีนี้และปิด Driving Permission?'
+        : promotingManager || actionValue === 'Manager'
+          ? 'ยืนยันแต่งตั้งบัญชีนี้เป็น Manager? Driving Permission จะปิดและต้องตรวจเปิดใหม่แยกต่างหาก'
+          : 'ยืนยันเปลี่ยนเป็น Admin? บัญชี Admin ใช้ขับรถไม่ได้')) return;
+    setSubmitting(true); setReviewError(''); setSuccessMessage('');
+    const result = await updateAdminAccount({ accountId: selectedAccount.id, action: promotingManager ? 'change_role' : accountAction,
+      value: promotingManager ? 'Manager' : accountAction === 'grant_driving' ? 'induction_confirmed' : actionValue, reason: actionReason });
+    setSubmitting(false);
+    if (result.error) { setReviewError(result.error); return; }
+    setSelectedAccount(null);
+    setSuccessMessage(accountAction === 'grant_driving' ? 'ยืนยันการแนะนำและเปิด Driving Permission แล้ว · บันทึก Audit Log แล้ว'
+      : accountAction === 'revoke_driving' ? 'ปิด Driving Permission และบันทึก Audit Log แล้ว'
+      : promotingManager || accountAction === 'change_role' && actionValue === 'Manager' ? 'แต่งตั้ง Manager แล้ว · บันทึก Audit Log แล้ว · Driving Permission ต้องตรวจและเปิดใหม่แยกต่างหาก'
+      : 'บันทึกการจัดการบัญชีและ Audit Log แล้ว · Driving Permission ต้องตรวจแยกเมื่อบทบาทหรือสถานะเปลี่ยน');
+    void loadAccounts();
   }
 
   return (
     <>
-      <PageHeader title="จัดการระบบ" description="ตรวจสอบและจัดการบัญชีผู้ใช้" badge="Admin" />
+      <PageHeader title="จัดการระบบ" description="บัญชีทั้งหมดและเครื่องมือผู้ดูแล" badge="Admin" />
       <div className="dashboard-grid admin-grid">
-        <section className="panel admin-users-panel">
+        <section className="panel admin-users-panel" id="admin-accounts">
           <div className="panel-heading">
             <div>
-              <h2>จัดการบัญชีผู้ใช้</h2>
-              <p className="muted">{isDemo ? 'ข้อมูลตัวอย่าง · อ่านได้อย่างเดียว' : 'ตรวจสอบบัญชีที่รออนุมัติทีละบัญชี'}</p>
+              <h2>บัญชีทั้งหมด</h2>
+              <p className="muted">{isDemo ? 'ข้อมูลตัวอย่าง · อ่านได้อย่างเดียว' : 'ค้นหาชื่อหรืออีเมล · กรองสถานะ · แต่งตั้ง Manager จากบัญชีที่อนุมัติแล้ว'}</p>
             </div>
-            <span className="panel-kicker">{isDemo ? 'ข้อมูลตัวอย่าง' : listState === 'ready' ? pendingAccounts.length + ' บัญชีรอตรวจ' : 'สถานะบัญชี'}</span>
+            <span className="panel-kicker">{isDemo ? 'ข้อมูลตัวอย่าง' : listState === 'ready' ? `${accounts.length} บัญชี · ${pendingCount} รอตรวจ` : 'กำลังอ่านบัญชี'}</span>
           </div>
 
           {isDemo && <div className="admin-feedback info"><ShieldCheck size={17} /><span>โหมดตัวอย่าง · รายการนี้ไม่ใช่บัญชีจริงและไม่สามารถบันทึกผลการตรวจสอบได้</span></div>}
           {!isDemo && successMessage && <div className="admin-feedback success" role="status"><BadgeCheck size={17} /><span>{successMessage}</span></div>}
 
           <div className={'account-toolbar ' + (isDemo ? 'demo-account-toolbar' : 'live-account-toolbar')}>
-            {isDemo && <div className="account-filters" role="tablist" aria-label="กรองบัญชีผู้ใช้">{filters.map((item) => <button key={item} type="button" role="tab" aria-selected={filter === item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div>}
+            <div className="account-filters" role="tablist" aria-label="กรองบัญชีผู้ใช้">{filters.map((item) => <button key={item} type="button" role="tab" aria-selected={filter === item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>{item} <span>{item === 'ทั้งหมด' ? accounts.length : accounts.filter((account) => account.status === item).length}</span></button>)}</div>
             <label className="search-field"><Search size={15} aria-hidden="true" /><input type="search" placeholder="ค้นหาชื่อ อีเมล หรือหน่วยงาน" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-            {!isDemo && <button className="button button-small button-outline" type="button" onClick={() => void loadPendingAccounts()} disabled={listState === 'loading'}><RefreshCw size={14} />โหลดใหม่</button>}
+            {!isDemo && <button className="button button-small button-outline" type="button" onClick={() => void loadAccounts()} disabled={listState === 'loading'}><RefreshCw size={14} />โหลดใหม่</button>}
           </div>
 
           {!isDemo && listState === 'loading' && <div className="admin-list-state" role="status"><LoaderCircle size={19} className="admin-spinner" />กำลังโหลดบัญชีจาก Supabase…</div>}
-          {!isDemo && listState === 'error' && <div className="admin-feedback error" role="alert"><CircleAlert size={18} /><span>{listError}<button type="button" className="text-button" onClick={() => void loadPendingAccounts()}>ลองอีกครั้ง</button></span></div>}
-          {!isDemo && listState === 'ready' && pendingAccounts.length === 0 && <div className="admin-list-state"><BadgeCheck size={19} />ไม่มีบัญชีที่รออนุมัติ</div>}
+          {!isDemo && listState === 'error' && <div className="admin-feedback error" role="alert"><CircleAlert size={18} /><span>{listError}<button type="button" className="text-button" onClick={() => void loadAccounts()}>ลองอีกครั้ง</button></span></div>}
+          {!isDemo && listState === 'ready' && accounts.length === 0 && <div className="admin-list-state"><BadgeCheck size={19} />ยังไม่มีบัญชีผู้ใช้</div>}
 
           {(isDemo || listState === 'ready') && (
             <div className="table-scroll">
               <table className="data-table account-table">
-                <thead><tr><th>ชื่อ / อีเมล</th><th>{isDemo ? 'บทบาทตัวอย่าง' : 'บทบาทที่สมัคร'}</th><th>สถานะ</th><th aria-label="การดำเนินการ" /></tr></thead>
+                <thead><tr><th>ชื่อ / อีเมล</th><th>บทบาทปัจจุบัน</th><th>สถานะบัญชี</th><th>สิทธิ์ขับ</th><th aria-label="การดำเนินการ" /></tr></thead>
                 <tbody>{visibleAccounts.map((account) => (
                   <tr key={account.id}>
                     <td><strong>{account.fullName || 'ไม่ระบุชื่อ'}</strong><span className="table-subtext">{account.email || 'ไม่พบอีเมล'}</span></td>
-                    <td>{account.requestedRole}</td>
+                    <td>{account.role}</td>
                     <td><span className={'account-status ' + account.status.toLowerCase()}>{account.status}</span></td>
-                    <td><button className="button button-small button-outline" type="button" onClick={() => selectAccount(account)}>{isDemo ? 'ดูตัวอย่าง' : 'ตรวจสอบ'}</button></td>
+                    <td>{account.role === 'Admin' ? 'ไม่ใช่ผู้ขับ' : account.drivingPermission && account.status === 'Approved' ? 'เปิดแล้ว' : '—'}</td>
+                    <td><button className="button button-small button-outline" type="button" onClick={() => selectAccount(account)}>{isDemo ? 'ดูตัวอย่าง' : account.status === 'Pending' ? 'ตรวจสอบ' : 'รายละเอียด'}</button></td>
                   </tr>
                 ))}</tbody>
               </table>
-              {visibleAccounts.length === 0 && (isDemo || pendingAccounts.length > 0) && <div className="empty-row">ไม่พบบัญชีที่ตรงกับการค้นหา</div>}
+              {visibleAccounts.length === 0 && accounts.length > 0 && <div className="empty-row">ไม่พบบัญชีที่ตรงกับการค้นหา/สถานะ</div>}
             </div>
           )}
 
@@ -188,7 +248,7 @@ export default function AdminPage({ authSource }: AdminPageProps) {
             {selectedAccount && <div className="selected-account admin-review-dialog-content">
               <div className="selected-head">
                 <div>
-                  <span className="panel-kicker">{isDemo ? 'บัญชีตัวอย่าง · อ่านได้อย่างเดียว' : 'กำลังตรวจสอบบัญชี Pending'}</span>
+                  <span className="panel-kicker">{isDemo ? 'บัญชีตัวอย่าง · อ่านได้อย่างเดียว' : selectedAccount.status === 'Pending' ? 'กำลังตรวจสอบบัญชี Pending' : `บัญชี ${selectedAccount.status}`}</span>
                   <strong id="admin-review-title">{selectedAccount.fullName || 'ไม่ระบุชื่อ'}</strong>
                   <span>{selectedAccount.email || 'ไม่พบอีเมล'}</span>
                 </div>
@@ -198,10 +258,14 @@ export default function AdminPage({ authSource }: AdminPageProps) {
                 <div><dt>เบอร์โทรศัพท์</dt><dd>{selectedAccount.phone || 'ไม่ระบุ'}</dd></div>
                 <div><dt>หน่วยงาน</dt><dd>{selectedAccount.department || 'ไม่ระบุ'}</dd></div>
                 <div><dt>{isDemo ? 'บทบาทตัวอย่าง' : 'ประเภทที่สมัคร'}</dt><dd>{selectedAccount.requestedRole}</dd></div>
+                <div><dt>บทบาทปัจจุบัน</dt><dd>{selectedAccount.role}</dd></div>
+                <div><dt>สถานะ</dt><dd>{selectedAccount.status}</dd></div>
+                <div><dt>สิทธิ์ขับขี่</dt><dd>{selectedAccount.role === 'Admin' ? 'บัญชี Admin ไม่ใช้ขับรถ' : selectedAccount.drivingPermission && selectedAccount.status === 'Approved' ? 'เปิดแล้ว' : 'ไม่ได้รับสิทธิ์'}</dd></div>
+                {selectedAccount.statusReason && <div><dt>เหตุผลสถานะ</dt><dd>{selectedAccount.statusReason}</dd></div>}
                 <div><dt>วันที่สมัคร</dt><dd>{selectedAccount.createdAt ? new Date(selectedAccount.createdAt).toLocaleString('th-TH') : 'ไม่มีข้อมูล'}</dd></div>
               </dl>
 
-              {!isDemo ? (
+              {!isDemo && selectedAccount.status === 'Pending' ? (
                 <div className="admin-review-form">
                   <label className="admin-review-field"><span>บทบาทหลังตรวจสอบ</span><select value={verifiedRole} onChange={(event) => setVerifiedRole(event.target.value as ApplicantRole)} disabled={submitting}><option value="Student">นักศึกษา · Student</option><option value="Employee">บุคลากร · Employee</option></select></label>
                   <label className="admin-affiliation-check"><input type="checkbox" checked={affiliationVerified} onChange={(event) => setAffiliationVerified(event.target.checked)} disabled={submitting} /><span>ตรวจสอบความเกี่ยวข้องกับมหาวิทยาลัยแล้ว (ตรวจสอบนอกระบบ)</span></label>
@@ -214,33 +278,38 @@ export default function AdminPage({ authSource }: AdminPageProps) {
                   {decision && <button className="button button-primary full-width" type="button" onClick={() => void submitReview()} disabled={submitting || !affiliationVerified || (decision === 'Rejected' && !rejectionReason.trim())}>{submitting ? <><LoaderCircle size={16} className="admin-spinner" />กำลังบันทึก…</> : decision === 'Approved' ? <><Check size={16} />ยืนยันอนุมัติ</> : <><UserRoundX size={16} />ยืนยันปฏิเสธ</>}</button>}
                   <p className="admin-driving-note"><ShieldCheck size={14} />การอนุมัติบัญชีไม่เปิดสิทธิ์ขับขี่</p>
                 </div>
-              ) : <div className="callout callout-info">บัญชีตัวอย่างนี้อ่านได้อย่างเดียว ไม่มีการเปลี่ยนสถานะจริง</div>}
+              ) : isDemo ? <div className="callout callout-info">บัญชีตัวอย่างนี้อ่านได้อย่างเดียว ไม่มีการเปลี่ยนสถานะจริง</div> : (
+                <div className="admin-review-form">
+                  <p className="muted">การแก้ชื่อ บทบาท หรือสถานะต้องบันทึกเหตุผลและ Audit Log · ไม่เปลี่ยนอีเมล</p>
+                  <div className="button-row admin-account-action-choices">
+                    <button className="button button-outline button-small" type="button" onClick={() => { setAccountAction('rename'); setActionValue(selectedAccount.fullName); setActionReason(''); setReviewError(''); }}>แก้ชื่อ</button>
+                    {selectedAccount.status === 'Approved' && (selectedAccount.role === 'Student' || selectedAccount.role === 'Employee') && selectedAccount.id !== currentAdminId && <button className="button button-primary button-small" type="button" onClick={() => { setAccountAction('promote_manager'); setActionValue(''); setActionReason(''); setReviewError(''); }}>แต่งตั้ง Manager</button>}
+                    {(selectedAccount.status === 'Approved' || selectedAccount.status === 'Suspended') && selectedAccount.id !== currentAdminId && <button className="button button-outline button-small" type="button" onClick={() => { setAccountAction('change_role'); setActionValue(selectedAccount.role); setActionReason(''); setReviewError(''); }}>เปลี่ยนบทบาท</button>}
+                    {selectedAccount.status === 'Approved' && selectedAccount.id !== currentAdminId && <button className="button button-danger button-small" type="button" onClick={() => { setAccountAction('suspend'); setActionValue(''); setActionReason(''); setReviewError(''); }}>ระงับบัญชี</button>}
+                    {selectedAccount.status === 'Suspended' && selectedAccount.id !== currentAdminId && <button className="button button-outline button-small" type="button" onClick={() => { setAccountAction('restore'); setActionValue(''); setActionReason(''); setReviewError(''); }}>คืนสถานะ Approved</button>}
+                    {selectedAccount.status === 'Approved' && selectedAccount.role !== 'Admin' && !selectedAccount.drivingPermission && <button className="button button-outline button-small" type="button" onClick={() => { setAccountAction('grant_driving'); setActionValue(''); setActionReason(''); setInductionConfirmed(false); setReviewError(''); }}>ให้สิทธิ์ขับ</button>}
+                    {selectedAccount.status === 'Approved' && selectedAccount.role !== 'Admin' && selectedAccount.drivingPermission && <button className="button button-outline button-small" type="button" onClick={() => { setAccountAction('revoke_driving'); setActionValue(''); setActionReason(''); setReviewError(''); }}>ปิดสิทธิ์ขับ</button>}
+                  </div>
+                  {selectedAccount.id === currentAdminId && <small className="muted">บัญชี Admin ปัจจุบันเปลี่ยนบทบาทหรือสถานะตนเองไม่ได้</small>}
+                  {accountAction && <div className="admin-account-action-form">
+                    <strong>{accountAction === 'rename' ? 'แก้ชื่อ–นามสกุล' : accountAction === 'promote_manager' ? 'แต่งตั้งเป็น Manager' : accountAction === 'change_role' ? 'เปลี่ยนบทบาท' : accountAction === 'suspend' ? 'ระงับบัญชี' : accountAction === 'restore' ? 'คืนสถานะบัญชี' : accountAction === 'grant_driving' ? 'ยืนยันการแนะนำและให้สิทธิ์ขับ' : 'ปิดสิทธิ์ขับ'}</strong>
+                    {accountAction === 'rename' && <label className="admin-review-field"><span>ชื่อ–นามสกุลใหม่</span><input value={actionValue} onChange={(event) => setActionValue(event.target.value)} maxLength={80} disabled={submitting} /></label>}
+                    {accountAction === 'promote_manager' && <p className="muted">เปลี่ยนบทบาทจาก {selectedAccount.role} เป็น Manager</p>}
+                    {accountAction === 'change_role' && <label className="admin-review-field"><span>บทบาทใหม่</span><select value={actionValue} onChange={(event) => setActionValue(event.target.value)} disabled={submitting}>{roles.map((role) => <option value={role} key={role}>{role}</option>)}</select></label>}
+                    {(accountAction === 'change_role' || accountAction === 'promote_manager' || accountAction === 'suspend' || accountAction === 'restore') && <p className="admin-driving-note"><ShieldCheck size={14} />การเปลี่ยนบทบาท/สถานะจะปิด Driving Permission; ต้องตรวจและเปิดใหม่แยกต่างหาก</p>}
+                    {accountAction === 'grant_driving' && <label className="admin-affiliation-check"><input type="checkbox" checked={inductionConfirmed} onChange={(event) => setInductionConfirmed(event.target.checked)} disabled={submitting} /><span>ทีมงานตรวจและยืนยันแล้วว่าผู้ใช้นี้ผ่านการแนะนำ</span></label>}
+                    <label className="admin-review-field"><span>เหตุผล <b>*</b></span><textarea value={actionReason} onChange={(event) => setActionReason(event.target.value)} rows={2} minLength={5} maxLength={1000} disabled={submitting} placeholder="ระบุเหตุผลอย่างน้อย 5 ตัวอักษร" /></label>
+                    {reviewError && <div className="admin-feedback error" role="alert"><CircleAlert size={17} /><span>{reviewError}</span></div>}
+                    <div className="button-row"><button className="button button-primary" type="button" disabled={submitting || actionReason.trim().length < 5 || (accountAction === 'rename' && actionValue.trim() === selectedAccount.fullName) || (accountAction === 'change_role' && actionValue === selectedAccount.role) || (accountAction === 'grant_driving' && !inductionConfirmed)} onClick={() => void submitAccountAction()}>{submitting ? 'กำลังบันทึก…' : 'ยืนยันและบันทึก Audit'}</button><button className="button button-outline" type="button" onClick={() => setAccountAction(null)} disabled={submitting}>ยกเลิก</button></div>
+                  </div>}
+                </div>
+              )}
             </div>}
           </dialog>
         </section>
 
-        <aside className="side-column">
-          <section className="panel service-settings-panel">
-            <div className="panel-heading"><div><div className="heading-with-icon"><ShieldCheck size={17} /><h2>เวลาขอเริ่ม Session</h2></div><p className="muted">Student / Employee · Manager ได้รับการยกเว้น</p></div><span className="panel-kicker">ยังไม่เชื่อมระบบจริง</span></div>
-            <div className="callout callout-info">ส่วนนี้ยังไม่เชื่อมฐานข้อมูล · การบันทึกยังไม่พร้อมใช้งาน</div>
-            <fieldset className="admin-disabled-fields" disabled>
-              <div className="time-range"><label><span>เริ่มเวลา</span><input type="time" defaultValue="08:00" /></label><label><span>สิ้นสุดเวลา</span><input type="time" defaultValue="17:00" /></label></div>
-              <label className="service-select"><span>สถานะการให้บริการ</span><select defaultValue="open"><option value="open">เปิดให้บริการ</option><option value="closed">หยุดให้บริการ</option></select></label>
-              <button className="button button-primary full-width" type="button"><Check size={16} />บันทึกการตั้งค่า</button>
-            </fieldset>
-          </section>
-          <section className="panel admin-tools-panel">
-            <div className="panel-heading"><div className="heading-with-icon"><Archive size={17} /><h2>การดูแลระบบ</h2></div><span className="panel-kicker">ยังไม่พร้อมใช้งาน</span></div>
-            <div className="callout callout-info">ประกาศ คำขอข้อมูลส่วนบุคคล และการเปิด Audit Log ยังไม่เชื่อมระบบจริง</div>
-            <fieldset className="admin-disabled-fields" disabled>
-              <button className="button button-outline full-width" type="button">หยุดให้บริการชั่วคราว</button>
-              <button className="button button-outline full-width" type="button"><FileClock size={15} />ดู Audit Log</button>
-              <div className="admin-links"><button type="button">ประกาศโครงการ</button><button type="button">คำขอใช้สิทธิข้อมูลส่วนบุคคล</button></div>
-            </fieldset>
-          </section>
-          <div className="permission-note"><div className="heading-with-icon"><ShieldCheck size={17} /><h2>สิทธิ์ผู้ดูแลระบบ</h2></div><p>ตรวจสอบบัญชีได้ทีละคน และบันทึกผลในประวัติการตรวจสอบ การอนุมัติบัญชีไม่ใช่การอนุญาตให้ใช้รถ</p></div>
-        </aside>
       </div>
+      <AdminPortalPanels isDemo={isDemo} pendingAccountCount={!isDemo && listState === 'ready' ? pendingCount : null} onShowToast={onShowToast} />
     </>
   );
 }
