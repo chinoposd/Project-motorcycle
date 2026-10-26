@@ -310,6 +310,7 @@ begin
       update public.ops_vehicle_state set motor_ready=(p_event->>'motor_ready')::boolean,stopped=(p_event->>'stopped')::boolean where vehicle_id='EV-01';
     end if;
   elsif kind like 'offline_%' then result:=app_ops.offline_ingest(p_event);
+  elsif kind in ('phone_return_check','gps_anomaly') then result:=app_ops.gateway_workflow_event(p_event);
   else raise exception 'Unsupported trusted event kind' using errcode='22023';end if;
   insert into public.ops_ingest_events(event_id,vehicle_id,kind,sequence,occurred_at,payload,result)
     values(incoming_event_id,'EV-01',kind,(p_event->>'sequence')::bigint,occurred,p_event-'latitude'-'longitude',result);
@@ -425,6 +426,7 @@ returns jsonb language plpgsql set search_path='' as $$
 begin
   perform app_ops.expire_cycles();
   return jsonb_build_object(
+    'service',(select to_jsonb(service)-'singleton' from public.admin_vehicle_service service),
     'vehicle',(select to_jsonb(v)||jsonb_build_object('fresh',v.valid_until>now()) from public.ops_vehicle_state v),
     'current_session',(select (to_jsonb(s)||jsonb_build_object('rider_name',p.full_name,'rider_role',p.role,'rider_phone',case when s.status='Active' then p.phone else null end))
       from public.ops_sessions s join public.profiles p on p.id=s.user_id where s.status not in ('Completed','Cancelled','Expired','Conflict') limit 1),
@@ -451,6 +453,8 @@ begin
     when exists(select 1 from public.ops_vehicle_state where online and protocol_verified and valid_until>now() and stopped and throttle_zero and bms_ok and motor_ready=false) then 'available'
     else 'unknown' end;
   return jsonb_build_object('vehicle_availability',state,
+    'own_vehicle',case when approved and exists(select 1 from public.ops_sessions where user_id=auth.uid() and status in ('Active','Paused','PendingEnd','PendingPause','PendingResume'))
+      then (select jsonb_build_object('latitude',latitude,'longitude',longitude,'gps_at',gps_at,'battery_percent',battery_percent,'fresh',valid_until>now()) from public.ops_vehicle_state) else null end,
     'session',(select to_jsonb(s) from public.ops_sessions s where user_id=auth.uid() and status not in ('Completed','Cancelled','Expired','Conflict') limit 1),
     'trips',coalesce((select jsonb_agg(jsonb_build_object('id',id,'started_at',started_at,'ended_at',ended_at,'distance_km',distance_km) order by started_at desc)
       from public.ops_sessions where user_id=auth.uid() and status='Completed'),'[]'::jsonb),
