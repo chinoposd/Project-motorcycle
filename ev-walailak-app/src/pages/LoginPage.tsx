@@ -17,7 +17,12 @@ import {
   getDemoCredentials,
   type DemoUser,
 } from '../auth/demoAuth';
-import { getPasswordResetFeedback } from '../auth/passwordResetFeedback';
+import {
+  getPasswordResetFeedback,
+  getVisiblePasswordResetFeedback,
+  type EmailBoundPasswordResetFeedback,
+} from '../auth/passwordResetFeedback';
+import { normalizeAuthEmail } from '../auth/emailAddress';
 import { getSupabaseAuthErrorMessage, sendSupabasePasswordReset, signInWithSupabase } from '../auth/supabaseAuth';
 import { supabaseConfig } from '../auth/supabaseClient';
 import type { UserRole } from '../types';
@@ -55,7 +60,7 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
   const [error, setError] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [passwordResetFeedback, setPasswordResetFeedback] = useState<ReturnType<typeof getPasswordResetFeedback> | null>(null);
+  const [passwordResetFeedback, setPasswordResetFeedback] = useState<EmailBoundPasswordResetFeedback | null>(null);
 
   useEffect(() => {
     const currentState = window.history.state;
@@ -114,13 +119,17 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
   }
 
   async function handlePasswordReset() {
+    const requestedEmail = normalizeAuthEmail(email);
     setPasswordResetFeedback(null);
     setIsSubmitting(true);
     try {
       const result = await sendSupabasePasswordReset(email);
-      setPasswordResetFeedback(getPasswordResetFeedback(result));
+      setPasswordResetFeedback({ requestedEmail, feedback: getPasswordResetFeedback(result) });
     } catch {
-      setPasswordResetFeedback(getPasswordResetFeedback({ ok: false, reason: 'request-failed' }));
+      setPasswordResetFeedback({
+        requestedEmail,
+        feedback: getPasswordResetFeedback({ ok: false, reason: 'request-failed' }),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -173,6 +182,7 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
 
   function handleEmailChange(value: string) {
     setEmail(value);
+    setPasswordResetFeedback(null);
     setSelectedRole(null);
     setError('');
   }
@@ -182,6 +192,8 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
     setSelectedRole(null);
     setError('');
   }
+
+  const visiblePasswordResetFeedback = getVisiblePasswordResetFeedback(passwordResetFeedback, email);
 
   return (
     <div className="login-screen">
@@ -217,9 +229,10 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
                   type="email"
                   value={email}
                   onChange={(event) => handleEmailChange(event.target.value)}
+                  disabled={isForgotPassword && isSubmitting}
                   placeholder="name@wu.ac.th"
-                  aria-invalid={error || passwordResetFeedback?.message === 'กรุณากรอกอีเมลให้ถูกต้อง' ? true : undefined}
-                  aria-describedby={error ? 'login-error' : passwordResetFeedback ? 'password-reset-feedback' : undefined}
+                  aria-invalid={error || visiblePasswordResetFeedback?.message === 'กรุณากรอกอีเมลให้ถูกต้อง' ? true : undefined}
+                  aria-describedby={error ? 'login-error' : visiblePasswordResetFeedback ? 'password-reset-feedback' : undefined}
                   required
                 />
               </span>
@@ -257,13 +270,13 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
 
             {error ? <p className="login-error" id="login-error" role="alert">{error}</p> : null}
 
-            {isForgotPassword && passwordResetFeedback && (
+            {isForgotPassword && visiblePasswordResetFeedback && (
               <p
-                className={`login-reset-feedback ${passwordResetFeedback.tone}`}
+                className={`login-reset-feedback ${visiblePasswordResetFeedback.tone}`}
                 id="password-reset-feedback"
-                role={passwordResetFeedback.tone === 'success' ? 'status' : 'alert'}
+                role={visiblePasswordResetFeedback.tone === 'success' ? 'status' : 'alert'}
               >
-                {passwordResetFeedback.message}
+                {visiblePasswordResetFeedback.message}
               </p>
             )}
 

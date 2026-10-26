@@ -1,4 +1,23 @@
 import type { PasswordResetResult } from './passwordResetRequest.ts';
+import { normalizeAuthEmail } from './emailAddress.ts';
+
+export interface EmailBoundPasswordResetFeedback {
+  requestedEmail: string;
+  feedback: ReturnType<typeof getPasswordResetFeedback>;
+}
+
+export function isPasswordResetFeedbackForEmail(requestedEmail: string, currentEmail: string): boolean {
+  return normalizeAuthEmail(requestedEmail) === normalizeAuthEmail(currentEmail);
+}
+
+export function getVisiblePasswordResetFeedback(
+  state: EmailBoundPasswordResetFeedback | null,
+  currentEmail: string,
+): ReturnType<typeof getPasswordResetFeedback> | null {
+  return state && isPasswordResetFeedbackForEmail(state.requestedEmail, currentEmail)
+    ? state.feedback
+    : null;
+}
 
 export function getPasswordResetFeedback(result: PasswordResetResult): { tone: 'success' | 'error'; message: string } {
   if (result.ok) {
