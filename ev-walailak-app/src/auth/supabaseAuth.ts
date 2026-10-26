@@ -1,5 +1,8 @@
 import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { isApplicantRole, parseSupabaseProfile } from './accountAccess';
+import { isValidAuthEmail, normalizeAuthEmail } from './emailAddress';
+import { isValidAuthPassword } from './passwordPolicy';
+import { requestPasswordReset, type PasswordResetResult } from './passwordResetRequest';
 import { supabase } from './supabaseClient';
 import type { DemoUser } from './demoAuth';
 
@@ -50,12 +53,10 @@ export async function signInWithSupabase(email: string, password: string): Promi
 export async function signUpWithSupabase(input: SupabaseRegistration): Promise<SupabaseAuthResult> {
   if (!supabase) return { user: null, error: 'not-configured' };
   const name = input.name.trim();
-  const email = input.email.trim().toLowerCase();
+  const email = normalizeAuthEmail(input.email);
   const phone = input.phone.trim();
-  if (!name || name.length > 80 || !phone || phone.length > 32 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-    || input.password.length < 9 || input.password.length > 256
-    || !/[a-z]/.test(input.password) || !/[A-Z]/.test(input.password)
-    || !/\d/.test(input.password) || !/[\p{P}\p{S}]/u.test(input.password)
+  if (!name || name.length > 80 || !phone || phone.length > 32 || !isValidAuthEmail(email)
+    || !isValidAuthPassword(input.password)
     || !isApplicantRole(input.requestedRole)) {
     return { user: null, error: 'invalid-registration' };
   }
@@ -91,12 +92,12 @@ export async function signOutSupabase(): Promise<void> {
   if (supabase) await supabase.auth.signOut();
 }
 
-export async function sendSupabasePasswordReset(email: string): Promise<{ ok: boolean }> {
-  if (!supabase) return { ok: false };
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: window.location.origin,
-  });
-  return { ok: !error };
+export async function sendSupabasePasswordReset(email: string): Promise<PasswordResetResult> {
+  return requestPasswordReset(
+    email,
+    window.location.origin,
+    supabase ? (normalizedEmail, options) => supabase.auth.resetPasswordForEmail(normalizedEmail, options) : null,
+  );
 }
 
 export async function updateSupabasePassword(password: string): Promise<{ ok: boolean }> {

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { LockKeyhole, ShieldCheck } from 'lucide-react';
+import { isValidAuthPassword } from '../auth/passwordPolicy';
 
 interface PasswordRecoveryPageProps {
   onComplete: () => void | Promise<void>;
@@ -17,9 +18,8 @@ export default function PasswordRecoveryPage({ onComplete, onCancel, onSave }: P
     event.preventDefault();
     if (isSaving) return;
     setError('');
-    if (password.length < 9 || !/[a-z]/.test(password) || !/[A-Z]/.test(password)
-      || !/\d/.test(password) || !/[\p{P}\p{S}]/u.test(password)) {
-      setError('รหัสผ่านต้องยาวอย่างน้อย 9 ตัว มีพิมพ์เล็ก พิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ');
+    if (!isValidAuthPassword(password)) {
+      setError('รหัสผ่านต้องยาว 9–256 ตัว มีพิมพ์เล็ก พิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ');
       return;
     }
     if (password !== confirmPassword) {
@@ -52,11 +52,11 @@ export default function PasswordRecoveryPage({ onComplete, onCancel, onSave }: P
         <form className="login-form" onSubmit={(event) => { void handleSubmit(event); }}>
           <label className="login-field" htmlFor="recovery-password">
             <span>รหัสผ่านใหม่</span>
-            <span className="login-input-wrap"><input id="recovery-password" type="password" autoComplete="new-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></span>
+            <span className="login-input-wrap"><input id="recovery-password" type="password" autoComplete="new-password" maxLength={256} required value={password} onChange={(event) => setPassword(event.target.value)} /></span>
           </label>
           <label className="login-field" htmlFor="recovery-confirm-password">
             <span>ยืนยันรหัสผ่านใหม่</span>
-            <span className="login-input-wrap"><input id="recovery-confirm-password" type="password" autoComplete="new-password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></span>
+            <span className="login-input-wrap"><input id="recovery-confirm-password" type="password" autoComplete="new-password" maxLength={256} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></span>
           </label>
           {error && <p className="login-error" role="alert"><LockKeyhole size={14} aria-hidden="true" /> {error}</p>}
           <button className="login-submit" type="submit" disabled={isSaving}>{isSaving ? 'กำลังบันทึก…' : 'บันทึกรหัสผ่านใหม่'}</button>
