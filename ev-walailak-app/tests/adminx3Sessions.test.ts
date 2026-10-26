@@ -6,8 +6,8 @@ import { ids, operationsDb } from './helpers/operationsDb.ts';
 let store: Awaited<ReturnType<typeof operationsDb>>;
 before(async () => { store = await operationsDb(); });
 after(async () => { await store?.db.close(); });
-async function ready() {
-  await store.db.exec(`update ops_vehicle_state set telemetry_at=now(),valid_until=now()+interval '1 minute',protocol_verified=true,
+async function ready(target=store) {
+  await target.db.exec(`update ops_vehicle_state set telemetry_at=now(),valid_until=now()+interval '1 minute',protocol_verified=true,
     stopped=true,throttle_zero=true,bms_ok=true,ai_ready=true,gps_reliable=true,motor_ready=false,online=true;
     insert into ops_zones(kind,geometry,reason,created_by) values('return','{"type":"Polygon","coordinates":[[[99,8],[100,8],[100,9],[99,8]]]}','test fixture','${ids.admin}'),
     ('main','{"type":"Polygon","coordinates":[[[99,8],[100,8],[100,9],[99,8]]]}','test fixture','${ids.admin}') on conflict do nothing;
@@ -93,6 +93,7 @@ test('server expiry counts a reservation No-show once and exemption releases onl
   await store.db.exec("update admin_portal_settings set no_show_limit=1,no_show_cooldown_hours=8; update ops_project_config set no_show_window_hours=24");
   const reserved=await store.rpc(ids.student,'request_web_session',[true,true,randomUUID()]);
   await store.db.query("update ops_sessions set created_at=now()-interval '6 minutes',expires_at=now()-interval '1 minute' where id=$1",[reserved.id]);
+  await store.db.exec("update ops_vehicle_state set telemetry_at=now()-interval '2 minutes'");
   await store.rpc(null,'operations_maintenance',[],true);
   await store.rpc(null,'operations_maintenance',[],true);
   const events=await store.db.query<{id:string;fault_status:string}>('select id,fault_status from ops_behavior_events where session_id=$1',[reserved.id]);
@@ -103,6 +104,19 @@ test('server expiry counts a reservation No-show once and exemption releases onl
   assert.ok((student.notices as {kind:string}[]).some(x=>x.kind==='no_show_corrected'));
   const employee=await store.db.query<{restricted_until:Date}>("select restricted_until from ops_behavior_cycles where user_id=$1 and kind='Cancellation' and closed_at is null",[ids.employee]);
   assert.ok(employee.rows[0]?.restricted_until);
+});
+
+test('stale vehicle telemetry exempts an expired reservation from rider No-show', async () => {
+  const local=await operationsDb();
+  try {
+    await ready(local);
+    const reserved=await local.rpc(ids.student,'request_web_session',[true,true,randomUUID()]);
+    await local.db.query("update ops_sessions set expires_at=now()-interval '1 minute' where id=$1",[reserved.id]);
+    await local.db.exec("update ops_vehicle_state set valid_until=now()-interval '2 minutes',online=false");
+    await local.rpc(null,'operations_maintenance',[],true);
+    const events=await local.db.query<{counted:boolean;fault_status:string}>("select counted,fault_status from ops_behavior_events where session_id=$1",[reserved.id]);
+    assert.deepEqual(events.rows,[{counted:false,fault_status:'Exempt'}]);
+  } finally {await local.db.close();}
 });
 
 test('shared operational acknowledgment records actor/time without clearing a safety block', async () => {
@@ -122,6 +136,25 @@ test('an unvalidated offline protocol cannot issue a manifest or authorize anoth
   await assert.rejects(store.rpc(null,'gateway_prepare_manifest',[86401,'test-key'],true),/24 hours/i);
   await assert.rejects(store.rpc(null,'gateway_prepare_manifest',[3600,'test-key'],true),/offline protocol|verified/i);
   await assert.rejects(store.rpc(ids.admin,'gateway_prepare_manifest',[3600,'test-key']),/permission denied/i);
+});
+
+test('unset Student hours exclude offline cards and reject even a legacy signed manifest start', async () => {
+  const local=await operationsDb();
+  try {
+    await ready(local);
+    await local.db.exec("update ops_vehicle_state set offline_protocol_verified=true; update admin_portal_settings set allowed_weekdays=null,session_start=null,session_end=null");
+    await local.db.query("insert into ops_consents(user_id,privacy_version,terms_version) values($1,'reviewed-v1','reviewed-v1')",[ids.student]);
+    await local.rpc(ids.admin,'admin_operations_action',['register_nfc',{user_id:ids.student,card_ref:'STUDENT-LEGACY-CARD',reason:'Verified card ownership'}]);
+    const manifest=await local.rpc(null,'gateway_prepare_manifest',[600,'test-key'],true);
+    assert.equal((manifest.cards as {user_id:string}[]).some(card=>card.user_id===ids.student),false);
+    const leaseView=await local.rpc(ids.student,'my_operations_snapshot');
+    assert.notEqual(leaseView.vehicle_availability,'available');
+    await local.db.exec("delete from ops_offline_manifests; update ops_vehicle_state set offline_reconciliation_required=false,offline_manifest_version=0,offline_lease_until=null");
+    const legacy={vehicle_id:'EV-01',version:1,issued_at:new Date(Date.now()-60000).toISOString(),expires_at:new Date(Date.now()+600000).toISOString(),key_id:'test-key',allowed_weekdays:[0,1,2,3,4,5,6],session_start:null,session_end:null,cards:[{card_ref:'STUDENT-LEGACY-CARD',user_id:ids.student,role:'Student'}]};
+    await local.db.query("insert into ops_offline_manifests(version,payload,issued_at,expires_at,key_id) values(1,$1,now()-interval '1 minute',now()+interval '10 minutes','test-key')",[JSON.stringify(legacy)]);
+    const event={event_id:randomUUID(),vehicle_id:'EV-01',kind:'offline_start',sequence:1,manifest_version:1,offline_session_id:randomUUID(),card_ref:'STUDENT-LEGACY-CARD',occurred_at:new Date().toISOString(),stopped:true,throttle_zero:true,bms_ok:true,ai_ready:true,gps_reliable:true,proximity_user_id:ids.student,motor_ready:true,inspection_confirmed:true};
+    await assert.rejects(local.rpc(null,'vehicle_ingest_event',[event],true),/hours|configured/i);
+  } finally {await local.db.close();}
 });
 
 test('signed offline lease blocks online starts until ordered events and manifest invalidation reconcile', async () => {

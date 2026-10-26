@@ -1,6 +1,6 @@
 # Adminx3 status compared with the reconciled project requirements (26 October 2026)
 
-This section supersedes the historical Adminx2 audit below. Source of truth: `EV_Motorcycle_Handoff_2026-10-14_C144_RECONCILED.md` (including the 20 October NFC amendment) and `EV_Motorcycle_Requirements_FULL_2026-10-14_C144_RECONCILED.txt`. The five Adminx3 SQL migrations were installed on connected Supabase project `rmgycwhlzhyenugacbke`: `20261026071717`, `20261026071906`, `20261026073434`, `20261026084638`, and `20261026085013`. Branch UI/Edge Function code is local; it has not been merged, pushed, or deployed as a web bundle. Edge Functions and physical vehicle validation remain pending.
+This section supersedes the historical Adminx2 audit below. Source of truth: `EV_Motorcycle_Handoff_2026-10-14_C144_RECONCILED.md` (including the 20 October NFC amendment) and `EV_Motorcycle_Requirements_FULL_2026-10-14_C144_RECONCILED.txt`. The seven Adminx3 SQL migrations were installed on connected Supabase project `rmgycwhlzhyenugacbke`: `20261026071717`, `20261026071906`, `20261026073434`, `20261026084638`, `20261026085013`, `20261026162000`, and `20261026163000`. Branch UI/Edge Function code is local; it has not been merged, pushed, or deployed as a web bundle. Edge Functions and physical vehicle validation remain pending.
 
 | Documented requirement | Adminx3 web/cloud implementation | Still requires |
 | --- | --- | --- |

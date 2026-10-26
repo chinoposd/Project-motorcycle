@@ -42,6 +42,8 @@ test('daily statistics disclose missing distance and Admin trip corrections pres
 });
 
 test('closing a privacy ticket cannot bypass identity verification and real fulfillment',async()=>{
+  await store.db.query("insert into ops_issue_reports(user_id,category,details,high_risk) values($1,'network','Network dropped during the ride',false)",[ids.student]);
+  await store.db.query('insert into ops_nfc_cards(user_id,card_ref,registered_by) values($1,$2,$3)',[ids.student,'ACCESS-PACKAGE-CARD',ids.admin]);
   const id=await store.rpc<string>(ids.student,'submit_data_subject_request',['access','Please provide a copy of my personal data']);
   await assert.rejects(store.rpc(ids.admin,'admin_portal_action',['review_privacy_request',{id,status:'Completed',admin_note:'Ticket closure is not fulfillment'}]),/identity|fulfillment|workflow/i);
   await assert.rejects(store.rpc(ids.admin,'admin_operations_action',['review_privacy',{id,version:1,decision:'approve',reason:'Reviewed lawful request',legal_basis:'Project policy access right'}]),/identity/i);
@@ -50,8 +52,11 @@ test('closing a privacy ticket cannot bypass identity verification and real fulf
   assert.equal(job.kind,'access');
   await store.rpc(null,'privacy_worker_finish',[job.id,job.lease_token,{ok:true}],true);
   const mine=await store.rpc(ids.student,'my_operations_snapshot');
-  const exports=mine.privacy_exports as {request_id:string;data:{profile:{id:string};trips:unknown[]}}[];
+  const exports=mine.privacy_exports as {request_id:string;data:{profile:{id:string};trips:unknown[];issue_reports:unknown[];nfc_cards:unknown[];trip_reports:unknown[]}}[];
   assert.equal(exports[0]?.request_id,id);assert.equal(exports[0]?.data.profile.id,ids.student);
+  assert.equal(exports[0]?.data.issue_reports.length,1);
+  assert.equal(exports[0]?.data.nfc_cards.length,1);
+  assert.equal(exports[0]?.data.trip_reports.length,1);
   const other=await store.rpc(ids.employee,'my_operations_snapshot');assert.deepEqual(other.privacy_exports,[]);
 });
 
@@ -92,16 +97,38 @@ test('deletion jobs preserve anonymous statistics and cannot claim completion wh
   await store.db.query('insert into auth.users(id,email) values($1,$2)',[subject,'deletion-subject@example.edu']);
   await completeTrip(subject,7);
   await store.db.exec("update ops_project_config set privacy_policy_reviewed_at=now(),privacy_policy_reference='Advisor reviewed policy reference' ");
+  const priorHold=await store.rpc(ids.admin,'admin_operations_action',['privacy_hold',{user_id:subject,enabled:true,reason:'Checking retention obligations'}]);
+  await store.rpc(ids.admin,'admin_operations_action',['privacy_hold',{id:priorHold.id,user_id:subject,enabled:false,reason:'No retention obligation remains'}]);
   const request=await store.rpc<string>(subject,'submit_data_subject_request',['deletion','Erase the personal records after policy review']);
   await store.rpc(ids.admin,'admin_operations_action',['review_privacy',{id:request,version:1,decision:'approve',identity_verified:true,identity_method:'Verified this person in project records',reason:'Policy permits requested deletion',legal_basis:'Reviewed policy with no retention hold'}]);
   const job=await store.rpc(null,'privacy_worker_claim',[],true);
   await store.rpc(null,'privacy_worker_purge',[job.id,job.lease_token],true);
+  const retainedAudit=await store.db.query<{target_id:string;before_value:unknown;after_value:unknown}>("select target_id,before_value,after_value from admin_portal_audit where action='review_privacy'");
+  assert.equal(JSON.stringify(retainedAudit.rows).includes(subject),false,'privacy review audit must not retain the requester UUID');
+  assert.equal(JSON.stringify(retainedAudit.rows).includes('Erase the personal records'),false,'privacy review audit must not retain request details');
+  const allAudit=await store.db.query<{target_id:string;before_value:unknown;after_value:unknown}>("select target_id,before_value,after_value from admin_portal_audit");
+  assert.equal(JSON.stringify(allAudit.rows).includes(subject),false,'other subject-linked audit records must be anonymized too');
   await assert.rejects(store.rpc(null,'privacy_worker_finish',[job.id,job.lease_token,{ok:true}],true),/Auth deletion/i);
   await store.db.query('delete from auth.users where id=$1',[subject]);
   const finished=await store.rpc(null,'privacy_worker_finish',[job.id,job.lease_token,{ok:true}],true);
   assert.equal(finished.status,'Completed');
   const anonymous=await store.db.query<{session_count:bigint;total_distance_km:string}>('select session_count,total_distance_km from ops_anonymous_daily_stats where day=$1',['2026-10-26']);
   assert.equal(Number(anonymous.rows[0]?.session_count),1);assert.equal(Number(anonymous.rows[0]?.total_distance_km),7);
+});
+
+test('privacy holds cannot be added after destructive cleanup has started',async()=>{
+  const local=await operationsDb();
+  try {
+    const subject=randomUUID();
+    await local.db.query('insert into auth.users(id,email) values($1,$2)',[subject,'hold-race@example.edu']);
+    await local.db.exec("update ops_project_config set privacy_policy_reviewed_at=now(),privacy_policy_reference='Reviewed policy'");
+    const request=await local.rpc<string>(subject,'submit_data_subject_request',['deletion','Please remove all records after policy review']);
+    await local.rpc(ids.admin,'admin_operations_action',['review_privacy',{id:request,version:1,decision:'approve',identity_verified:true,identity_method:'Verified in records',reason:'Approved lawful request',legal_basis:'No retention requirement'}]);
+    const job=await local.rpc(null,'privacy_worker_claim',[],true);
+    await assert.rejects(local.rpc(ids.admin,'admin_operations_action',['privacy_hold',{user_id:subject,enabled:true,reason:'Late retention hold'}]),/Cleanup is running|irreversible/i);
+    await local.rpc(null,'privacy_worker_purge',[job.id,job.lease_token],true);
+    await assert.rejects(local.rpc(ids.admin,'admin_operations_action',['privacy_hold',{user_id:subject,enabled:true,reason:'Late retention hold'}]),/Cleanup is running|irreversible/i);
+  } finally {await local.db.close();}
 });
 
 test('Manager safety clearance never replaces final Admin reopening or trusted evidence',async()=>{
@@ -121,4 +148,13 @@ test('daily totals remain available after all source trips have been anonymized'
   const report=await store.rpc(ids.admin,'admin_operations_snapshot',['2026-10-24']);
   const stats=report.daily_report as {session_count:number;total_distance_km:number;average_distance_km:number};
   assert.equal(stats.session_count,3);assert.equal(Number(stats.total_distance_km),9);assert.equal(Number(stats.average_distance_km),3);
+});
+
+test('live account snapshot includes a newly assigned suspension reason',async()=>{
+  const local=await operationsDb();
+  try {
+    await local.db.query("update profiles set account_status='Suspended',account_status_reason='Project review required' where id=$1",[ids.student]);
+    const mine=await local.rpc(ids.student,'my_operations_snapshot');
+    assert.equal((mine.account as {account_status_reason:string}).account_status_reason,'Project review required');
+  } finally {await local.db.close();}
 });

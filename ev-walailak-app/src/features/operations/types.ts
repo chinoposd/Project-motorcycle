@@ -28,7 +28,7 @@ export interface OperationsSnapshot {can_admin:boolean;config:OpsConfig;accounts
   zones:Zone[];daily_report:DailyReport;trip_reports:TripReport[];gps_reviews:GpsReview[];return_checks:ReturnCheck[];privacy_requests:PrivacyCase[];privacy_jobs:PrivacyJob[];privacy_holds:PrivacyHold[];manifests:ManifestSummary[];
 }
 export interface UserNotice {id:string;kind:string;message:string;created_at:string;expires_at:string|null;acknowledgment_required:boolean;acknowledged_at:string|null}
-export interface MyOperations {account:{id:string;name:string;phone:string;role:'Student'|'Employee'|'Manager'|'Admin';status:'Pending'|'Approved'|'Rejected'|'Suspended';driving_permission:boolean;induction_confirmed:boolean};project_phone:string;appeals:Appeal[];nfc_card:Card|null;vehicle_availability:'available'|'unavailable'|'in_use'|'unknown'|null;session:OpsSession|null;
+export interface MyOperations {account:{id:string;name:string;phone:string;role:'Student'|'Employee'|'Manager'|'Admin';status:'Pending'|'Approved'|'Rejected'|'Suspended';account_status_reason:string;driving_permission:boolean;induction_confirmed:boolean};project_phone:string;appeals:Appeal[];nfc_card:Card|null;vehicle_availability:'available'|'unavailable'|'in_use'|'unknown'|null;session:OpsSession|null;
   own_vehicle:{latitude:number|null;longitude:number|null;gps_at:string|null;battery_percent:number|null;fresh:boolean}|null;
   trips:Pick<OpsSession,'id'|'started_at'|'ended_at'|'distance_km'>[];no_show_events:BehaviorEvent[];cycles:Cycle[];warnings:{kind:string;remaining:number}[];notices:UserNotice[];zones:Zone[];
   consent_versions:{privacy:string|null;terms:string|null;privacy_text?:string|null;terms_text?:string|null};

@@ -3,6 +3,7 @@ import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {test} from 'node:test';
 import {createServer} from 'vite';
+import type {OperationsSnapshot} from '../src/features/operations/types';
 
 test('real driver screens show authoritative empty states and owner controls',async()=>{
   const vite=await createServer({server:{middlewareMode:true,hmr:false},appType:'custom'});
@@ -23,6 +24,20 @@ test('real Manager operations use scoped alerts and report states',async()=>{
     for(const label of ['ภาพรวมการปฏิบัติงาน','ศูนย์แจ้งเตือนปฏิบัติการ','รายงานรายวัน','Safety Block'])assert.ok(html.includes(label),label);
     assert.equal(html.includes('นภัส'),false);
     assert.equal(html.includes('12</strong>'),false);
+  }finally{await vite.close();}
+});
+
+test('Manager can see authorized No-show review and release controls',async()=>{
+  const vite=await createServer({server:{middlewareMode:true,hmr:false},appType:'custom'});
+  try{
+    const {default:OperationalReviews}=await vite.ssrLoadModule('/src/features/operations/OperationalReviews.tsx');
+    const data={service:{manual_out_of_service:false,safety_block_active:false,final_confirmation_required:false,service_reason:''},current_session:null,
+      no_show_events:[{id:'event-1',user_name:'Student One',occurred_at:new Date().toISOString(),fault_status:'Counted',counted:true}],no_show_reviews:[],
+      cycles:[{id:'cycle-1',user_name:'Student One',release_pending:true,count_value:0,restricted_until:new Date().toISOString()}],trip_reports:[],inspections:[],issues:[],gps_reviews:[],return_checks:[],accounts:[]};
+    const html=renderToStaticMarkup(createElement(OperationalReviews,{data:data as unknown as OperationsSnapshot,disabled:false,run:async()=>true,isManager:true}));
+    assert.ok(html.includes('ผลตรวจหลักฐาน'));
+    assert.ok(html.includes('อนุมัติปลด No-show'));
+    assert.equal(html.includes('ปิด Session กรณีพิเศษ'),false);
   }finally{await vite.close();}
 });
 

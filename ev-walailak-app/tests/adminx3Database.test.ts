@@ -50,7 +50,7 @@ test('project phone and Pilot parameters are audited and remain unset by default
 
 test('the current account snapshot is scoped to its authenticated owner',async()=>{
   const student=await store.rpc(ids.student,'my_operations_snapshot');
-  assert.deepEqual(student.account,{id:ids.student,name:'student',phone:'0812345678',role:'Student',status:'Approved',driving_permission:true,induction_confirmed:true});
+  assert.deepEqual(student.account,{id:ids.student,name:'student',phone:'0812345678',role:'Student',status:'Approved',account_status_reason:'',driving_permission:true,induction_confirmed:true});
   const manager=await store.rpc<{account:{id:string;role:string}}>(ids.manager,'my_operations_snapshot');
   assert.equal(manager.account.id,ids.manager);
   assert.equal(manager.account.role,'Manager');

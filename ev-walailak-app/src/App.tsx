@@ -172,9 +172,9 @@ export default function App() {
     const account=myOperations.data?.account;
     const active=currentUserRef.current;
     if(!account||!active||active.authSource!=='supabase'||active.id!==account.id)return;
-    if(active.role===account.role&&active.accountStatus===account.status&&active.drivingPermission===account.driving_permission&&active.name===account.name&&active.phone===account.phone)return;
+    if(active.role===account.role&&active.accountStatus===account.status&&active.drivingPermission===account.driving_permission&&active.name===account.name&&active.phone===account.phone&&active.accountStatusReason===account.account_status_reason)return;
     const nextUser:AppUser={...active,name:account.name,phone:account.phone,role:account.role,accountStatus:account.status,drivingPermission:account.driving_permission,
-      accountStatusReason:account.status==='Approved'||account.status==='Pending'?'':active.accountStatusReason};
+      accountStatusReason:account.account_status_reason};
     const reset=shouldResetPageForAuthUpdate(active,nextUser,currentPageRef.current);
     currentUserRef.current=nextUser;setUser(nextUser);
     if(reset)navigatePage(getPageForAuthUpdate(nextUser),'replace',account.role==='Manager'?'overview':managerView);
