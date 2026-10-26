@@ -33,6 +33,9 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
   const cleanups: (() => void)[] = [];
   const requests: { resolve: (value: SupabaseAuthResult) => void; reject: (error: Error) => void }[] = [];
   let listener: (event: string, session: { user: { id: string } } | null) => void;
+  let lazyIndex=0;
+  const lazyNames=['AdminPage','ApprovalStatusPage','LoginPage','ManagerPage','ManagerProfilePage','ProfileSettingsPage','OverviewPage','PasswordRecoveryPage','RidePage','LiveUserPage','ManagerOperationsPage'];
+  const emptyOperations={data:null,error:'',loading:false,busy:false,refresh:async()=>undefined,run:async()=>false,requestSession:async()=>false,sessionAction:async()=>false};
   const modules: Record<string, unknown> = {
     './auth/accountAccess': accountAccess,
     './auth/authRequestEpoch': authRequestEpoch,
@@ -41,6 +44,10 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
     './auth/managerProfile': managerProfile,
     './auth/userProfile': userProfile,
     './auth/profilePhoto': profilePhoto,
+    './auth/supabaseProfile': {createSupabaseProfilePhotoUrl:async()=>null,saveSupabaseProfilePhoto:async()=>({ok:false}),updateSupabaseProfile:async()=>({ok:false})},
+    './features/operations/client': {bangkokDay:()=> '2026-10-26'},
+    './features/operations/useMyOperations': {useMyOperations:()=>emptyOperations},
+    './features/operations/useOperations': {useOperations:()=>emptyOperations},
     './data/mockData': { initialAlerts: [] },
     './auth/supabaseClient': {
       supabaseConfig: { mode: 'configured' },
@@ -55,6 +62,8 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
       signOutSupabase: async () => undefined,
     },
     react: {
+      lazy:()=>lazyNames[lazyIndex++],
+      Suspense:'Suspense',
       useState(initial: unknown) {
         const index = cursor++;
         if (!mounted) slots[index] = typeof initial === 'function' ? initial() : initial;
@@ -71,20 +80,21 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
       useEffect: (effect: () => void | (() => void)) => { if (!mounted) effects.push(effect); },
     },
     'react/jsx-runtime': {
-      jsx: (type: string, props: Record<string, unknown>) => ({ type, props }),
-      jsxs: (type: string, props: Record<string, unknown>) => ({ type, props }),
+      jsx: (type: string, props: Record<string, unknown>) => type==='Suspense'?props.children:({ type, props }),
+      jsxs: (type: string, props: Record<string, unknown>) => type==='Suspense'?props.children:({ type, props }),
     },
   };
   const exports: { default?: () => { type: string; props: Record<string, any> } } = {};
   const source = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
   const transformed = await transformWithOxc(source, 'App.tsx', { jsx: { runtime: 'automatic' } });
   const transformedModule = await moduleRunnerTransform(transformed.code, null, 'App.tsx', source);
+  const browserWindow={location:{pathname:'/LoginPage',href:'http://localhost/LoginPage',search:'',hash:''},history:{state:{} as Record<string,unknown>,replaceState(state:Record<string,unknown>,_title:string,url:string){this.state=state;browserWindow.location.pathname=url},pushState(state:Record<string,unknown>,_title:string,url:string){this.state=state;browserWindow.location.pathname=url}},addEventListener(){},removeEventListener(){},setTimeout,clearTimeout};
   await runInNewContext(`(async () => { ${transformedModule!.code} })()`, {
     __vite_ssr_exports__: exports,
     __vite_ssr_exportName__: (name: string, getter: () => unknown) => Object.defineProperty(exports, name, { get: getter }),
-    queueMicrotask, async __vite_ssr_import__(id: string) {
+    queueMicrotask,window:browserWindow, async __vite_ssr_import__(id: string) {
     if (id in modules) return modules[id];
-    if (id.startsWith('./pages/') || id.startsWith('./components/')) return { default: id.split('/').at(-1) };
+    if (id.startsWith('./pages/') || id.startsWith('./components/') || id.startsWith('./features/operations/')) return { default: id.split('/').at(-1) };
     throw new Error(`Uninjected App dependency: ${id}`);
   } });
   const screen = () => { cursor = 0; return exports.default!(); };

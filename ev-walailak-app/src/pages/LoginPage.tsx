@@ -46,7 +46,7 @@ function writeAuthRoute(route: 'login' | 'register', mode: 'push' | 'replace', p
 }
 
 export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
-  const [isRegisterOpen, setIsRegisterOpen] = useState(() => window.location.pathname === '/RegisterPage');
+  const [isRegisterOpen, setIsRegisterOpen] = useState(() => typeof window !== 'undefined' && window.location.pathname === '/RegisterPage');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -113,6 +113,15 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
     setError('');
     setIsSubmitting(true);
     try {
+      if (selectedRole) {
+        const demo=getDemoCredentials(selectedRole);
+        if (email===demo.email&&password===demo.password) {
+          const user=await authenticateUser(email,password);
+          if (user) onLogin(user);
+          else setError('บัญชีทดลองนี้ไม่พร้อมใช้งาน');
+          return;
+        }
+      }
       if (supabaseConfig.mode === 'configured') {
         const result = await signInWithSupabase(email, password);
         if (result.user) return;

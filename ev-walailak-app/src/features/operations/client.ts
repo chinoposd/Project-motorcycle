@@ -24,7 +24,9 @@ export function runOperation(action:string,payload:Record<string,unknown>):Promi
   return supabase?result(supabase.rpc('admin_operations_action',{p_action:action,p_payload:payload as Json})):Promise.resolve(unavailable);
 }
 export function loadMyOperations():Promise<OpsResult<MyOperations>>{
-  return supabase?result(supabase.rpc('my_operations_snapshot')):Promise.resolve(unavailable);
+  if(!supabase)return Promise.resolve(unavailable);
+  return result<MyOperations>(supabase.rpc('my_operations_snapshot')).then(response=>response.data&&(!response.data.account||!Array.isArray(response.data.appeals)||!Array.isArray(response.data.trips))
+    ?{data:null,error:'ข้อมูลบัญชีและ Session ยังไม่ครบ · ตรวจการติดตั้ง migration Adminx3 แล้วโหลดใหม่'}:response);
 }
 export function runUserOperation(action:string,payload:Record<string,unknown>):Promise<OpsResult<unknown>>{
   return supabase?result(supabase.rpc('user_operations_action',{p_action:action,p_payload:payload as Json})):Promise.resolve(unavailable);

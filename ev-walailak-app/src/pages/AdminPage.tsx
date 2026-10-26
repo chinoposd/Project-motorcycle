@@ -52,6 +52,7 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
   const [actionReason, setActionReason] = useState('');
   const [inductionConfirmed, setInductionConfirmed] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [adminRevision,setAdminRevision]=useState(0);
   const reviewDialogRef = useRef<HTMLDialogElement>(null);
 
   const loadAccounts = useCallback(async () => {
@@ -157,6 +158,7 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
       ? 'อนุมัติบัญชีเป็น ' + result.data.role + ' แล้ว · สิทธิ์ขับขี่ยังคงสถานะเดิม'
       : 'ปฏิเสธบัญชีแล้ว · บันทึกเหตุผลการตรวจสอบเรียบร้อย');
     void loadAccounts();
+    setAdminRevision(value=>value+1);
   }
 
   async function submitAccountAction() {
@@ -194,12 +196,13 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
       : promotingManager || accountAction === 'change_role' && actionValue === 'Manager' ? 'แต่งตั้ง Manager แล้ว · บันทึก Audit Log แล้ว · Driving Permission ต้องตรวจและเปิดใหม่แยกต่างหาก'
       : 'บันทึกการจัดการบัญชีและ Audit Log แล้ว · Driving Permission ต้องตรวจแยกเมื่อบทบาทหรือสถานะเปลี่ยน');
     void loadAccounts();
+    setAdminRevision(value=>value+1);
   }
 
   return (
     <>
       <PageHeader title="จัดการระบบ" description="บัญชีทั้งหมดและเครื่องมือผู้ดูแล" badge="Admin" />
-      <AdminWorkspace isDemo={isDemo} onShowToast={onShowToast} onChanged={()=>void loadAccounts()} accounts={<div className="dashboard-grid admin-grid">
+      <AdminWorkspace isDemo={isDemo} onShowToast={onShowToast} onChanged={()=>{void loadAccounts();setAdminRevision(value=>value+1);}} accounts={<div className="dashboard-grid admin-grid">
         <section className="panel admin-users-panel" id="admin-accounts">
           <div className="panel-heading">
             <div>
@@ -309,7 +312,7 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
           </dialog>
         </section>
 
-      </div>} settings={<AdminPortalPanels enhanced isDemo={isDemo} pendingAccountCount={!isDemo && listState === 'ready' ? pendingCount : null} onShowToast={onShowToast} />} />
+      </div>} settings={<AdminPortalPanels enhanced refreshKey={adminRevision} isDemo={isDemo} pendingAccountCount={!isDemo && listState === 'ready' ? pendingCount : null} onShowToast={onShowToast} />} />
     </>
   );
 }

@@ -107,6 +107,8 @@ test('deletion jobs preserve anonymous statistics and cannot claim completion wh
 test('Manager safety clearance never replaces final Admin reopening or trusted evidence',async()=>{
   await store.db.exec("update admin_vehicle_service set safety_block_active=true,final_confirmation_required=true; update ops_vehicle_state set stopped=true,motor_ready=false,online=true,protocol_verified=true,bms_ok=true,throttle_zero=true,valid_until=now()+interval '1 minute'");
   await assert.rejects(store.rpc(ids.manager,'admin_portal_action',['set_manual_service_stop',{enabled:false,reason:'Manager has no manual control'}]),/Admin access required/i);
+  await assert.rejects(store.rpc(ids.manager,'admin_operations_action',['close_session_exception',{id:'00000000-0000-4000-8000-000000000099',physical_inspection_confirmed:true,reason:'Manager must not close an exceptional Session'}]),/Admin access required/i);
+  await assert.rejects(store.rpc(ids.manager,'admin_operations_action',['resolve_vehicle_conflict',{physical_inspection_confirmed:true,reason:'Manager must not resolve a vehicle conflict'}]),/Admin access required/i);
   await store.rpc(ids.manager,'admin_operations_action',['clear_safety_block',{physical_inspection_confirmed:true,reason:'Physically inspected and verified brake repair'}]);
   const state=await store.db.query<{safety_block_active:boolean;final_confirmation_required:boolean}>('select safety_block_active,final_confirmation_required from admin_vehicle_service');
   assert.deepEqual(state.rows[0],{safety_block_active:false,final_confirmation_required:true});

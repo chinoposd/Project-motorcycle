@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Activity, AlertTriangle, Archive, BadgeCheck, Bell, Check, Clock3, FileClock, LoaderCircle, Megaphone, Save, ShieldCheck, UserRoundCheck } from 'lucide-react';
 import { loadAdminPortal, runAdminPortalAction, type AdminPortalSnapshot, type AnnouncementRole, type PortalAnnouncement, type PortalSettings, type PrivacyRequest } from '../auth/adminPortal';
 
-interface AdminPortalPanelsProps { isDemo: boolean; enhanced?: boolean; pendingAccountCount?: number | null; onShowToast: (message: string) => void; }
+interface AdminPortalPanelsProps { isDemo: boolean; enhanced?: boolean; refreshKey?:number; pendingAccountCount?: number | null; onShowToast: (message: string) => void; }
 const weekdays = [
   { value: 1, label: 'จันทร์' }, { value: 2, label: 'อังคาร' }, { value: 3, label: 'พุธ' },
   { value: 4, label: 'พฤหัสบดี' }, { value: 5, label: 'ศุกร์' }, { value: 6, label: 'เสาร์' }, { value: 0, label: 'อาทิตย์' },
@@ -33,7 +33,7 @@ const unavailableSnapshot: AdminPortalSnapshot = {
   settings: { ...demoSnapshot.settings },
 };
 
-export default function AdminPortalPanels({ isDemo, enhanced=false, pendingAccountCount = null, onShowToast }: AdminPortalPanelsProps) {
+export default function AdminPortalPanels({ isDemo, enhanced=false, refreshKey=0, pendingAccountCount = null, onShowToast }: AdminPortalPanelsProps) {
   const [loadedSnapshot, setLoadedSnapshot] = useState<AdminPortalSnapshot | null>(isDemo ? demoSnapshot : null);
   const [loading, setLoading] = useState(!isDemo);
   const [error, setError] = useState('');
@@ -64,7 +64,7 @@ export default function AdminPortalPanels({ isDemo, enhanced=false, pendingAccou
     setLoading(false);
   }, [isDemo]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh,refreshKey]);
 
   async function perform(action: Parameters<typeof runAdminPortalAction>[0], payload: Record<string, unknown>, success: string) {
     if (isDemo || unavailable) { onShowToast(isDemo ? 'โหมดตัวอย่าง · ไม่มีการบันทึกข้อมูลจริง' : 'ยังเชื่อมเครื่องมือ Admin กับ Supabase ไม่ได้'); return false; }
