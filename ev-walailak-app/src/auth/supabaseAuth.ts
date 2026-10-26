@@ -93,10 +93,11 @@ export async function signOutSupabase(): Promise<void> {
 }
 
 export async function sendSupabasePasswordReset(email: string): Promise<PasswordResetResult> {
+  const client = supabase;
   return requestPasswordReset(
     email,
     window.location.origin,
-    supabase ? (normalizedEmail, options) => supabase.auth.resetPasswordForEmail(normalizedEmail, options) : null,
+    client ? (normalizedEmail, options) => client.auth.resetPasswordForEmail(normalizedEmail, options) : null,
   );
 }
 
