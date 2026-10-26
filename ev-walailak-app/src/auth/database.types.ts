@@ -48,6 +48,30 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      admin_portal_snapshot: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      admin_portal_action: {
+        Args: { p_action: string; p_payload: Json };
+        Returns: Json;
+      };
+      submit_data_subject_request: {
+        Args: { p_request_type: string; p_details: string };
+        Returns: string;
+      };
+      list_my_data_subject_requests: {
+        Args: Record<PropertyKey, never>;
+        Returns: { id: string; request_type: string; details: string; status: string; admin_note: string; created_at: string; reviewed_at: string | null }[];
+      };
+      list_published_announcements: {
+        Args: Record<PropertyKey, never>;
+        Returns: { id: string; title: string; body: string; important: boolean; published_at: string; seen: boolean }[];
+      };
+      mark_announcement_seen: {
+        Args: { p_announcement_id: string };
+        Returns: boolean;
+      };
       admin_list_pending_accounts: {
         Args: Record<PropertyKey, never>;
         Returns: {

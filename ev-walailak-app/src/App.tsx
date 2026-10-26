@@ -10,6 +10,7 @@ import { readManagerProfile, writeManagerProfile, type ManagerProfile } from './
 import { readUserProfile, writeUserProfile } from './auth/userProfile';
 import { readProfilePhoto, writeProfilePhoto } from './auth/profilePhoto';
 import AppShell from './components/AppShell';
+import AnnouncementPopup from './components/AnnouncementPopup';
 import { initialAlerts } from './data/mockData';
 import type { AlertRecord, ManagerView, PageId, SessionStatus } from './types';
 
@@ -488,13 +489,14 @@ export default function App() {
   return (
     <AppShell authSource={user.authSource} page={page} breadcrumbLabel={page === 'manager' ? (managerView === 'overview' ? 'ภาพรวมการปฏิบัติงาน' : 'ขับขี่รถ') : undefined} breadcrumbParent={page === 'manager' && managerView === 'ride' ? { label: 'ภาพรวมการปฏิบัติงาน', onNavigate: () => navigateManagerView('overview') } : undefined} user={user} profilePhoto={profilePhoto} onNavigate={handleNavigate} onLogout={handleLogout}>
       <Suspense fallback={appPageFallback}>
-        {page === 'home' && <OverviewPage sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
+        {page === 'home' && <OverviewPage sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} authSource={user?.authSource ?? 'demo'} />}
         {page === 'ride' && <RidePage status={sessionStatus} onPauseResume={handleStartPause} onEnd={handleEndSession} onShowToast={showToast} />}
         {page === 'manager' && <ManagerPage view={managerView} onViewChange={navigateManagerView} alerts={alerts} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
         {page === 'manager-profile' && user.role === 'Manager' && <ManagerProfilePage user={user} profile={managerProfile} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleManagerProfileSave} onCancel={() => handleNavigate('manager')} canCloseAccount={sessionStatus === 'idle'} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
         {page === 'profile-settings' && user.role !== 'Manager' && <ProfileSettingsPage user={user} profile={user.authSource === 'supabase' ? { name: user.name, phone: user.phone ?? '' } : readUserProfile(user.id)} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleNavigate(getLandingPage(user.role))} canCloseAccount={user.authSource === 'demo' && (user.role === 'Admin' || sessionStatus === 'idle')} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
-        {page === 'admin' && <AdminPage authSource={user.authSource} />}
+        {page === 'admin' && <AdminPage authSource={user.authSource} onShowToast={showToast} />}
       </Suspense>
+      {user.authSource === 'supabase' && <AnnouncementPopup userId={user.id} sessionActive={sessionStatus === 'active'} onShowToast={showToast} />}
       <div className={`toast${toast ? ' visible' : ''}`} role="status" aria-live="polite">{toast}</div>
     </AppShell>
   );

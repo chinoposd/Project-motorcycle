@@ -1,18 +1,31 @@
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRight, BookOpen, Check, ClipboardList, Clock3, FileText, ShieldCheck } from 'lucide-react';
 import CampusMap from '../components/CampusMap';
 import PageHeader from '../components/PageHeader';
 import VehiclePanel from '../components/VehiclePanel';
 import { announcements, sessionHistory } from '../data/mockData';
 import type { SessionStatus } from '../types';
+import { loadPublishedAnnouncements, type PublishedAnnouncement } from '../auth/adminPortal';
 
 interface OverviewPageProps {
   sessionStatus: SessionStatus;
   onStartPause: () => void;
   onLock: () => void;
   onShowToast: (message: string) => void;
+  authSource: 'demo' | 'supabase';
 }
 
-export default function OverviewPage({ sessionStatus, onStartPause, onLock, onShowToast }: OverviewPageProps) {
+export default function OverviewPage({ sessionStatus, onStartPause, onLock, onShowToast, authSource }: OverviewPageProps) {
+  const [liveAnnouncements, setLiveAnnouncements] = useState<PublishedAnnouncement[] | null>(null);
+  const [announcementError, setAnnouncementError] = useState('');
+  useEffect(() => {
+    if (authSource !== 'supabase') return;
+    void loadPublishedAnnouncements().then((result) => {
+      if (result.error) setAnnouncementError(result.error);
+      else { setAnnouncementError(''); setLiveAnnouncements(result.data); }
+    });
+  }, [authSource]);
+  const visibleAnnouncements = authSource === 'supabase' ? liveAnnouncements ?? [] : announcements.map((item) => ({ id: item.id, title: item.title, body: item.detail, published_at: item.time }));
   return (
     <>
       <PageHeader title="ภาพรวม" description="ตรวจสอบสถานะรถ สิทธิ์การใช้งาน และข้อมูลล่าสุดของคุณ" badge="ข้อมูลตัวอย่าง" />
@@ -35,7 +48,7 @@ export default function OverviewPage({ sessionStatus, onStartPause, onLock, onSh
 
           <section className="panel announcements-panel">
             <div className="panel-heading"><div className="heading-with-icon"><ClipboardList size={17} /><h2>ประกาศ</h2></div><button type="button" className="text-button" onClick={() => onShowToast('เปิดประกาศทั้งหมด · ตัวอย่าง')}>ดูทั้งหมด <ArrowRight size={14} /></button></div>
-            <div className="announcement-list">{announcements.map((item) => <article className="announcement" key={item.id}><span className="announcement-icon"><FileText size={15} /></span><div><div className="announcement-title-row"><h3>{item.title}</h3><time>{item.time}</time></div><p>{item.detail}</p></div></article>)}</div>
+            <div className="announcement-list">{visibleAnnouncements.map((item) => <article className="announcement" key={item.id}><span className="announcement-icon"><FileText size={15} /></span><div><div className="announcement-title-row"><h3>{item.title}</h3><time>{authSource === 'supabase' ? new Date(item.published_at).toLocaleDateString('th-TH') : item.published_at}</time></div><p>{item.body}</p></div></article>)}{announcementError ? <p className="muted">ยังโหลดประกาศไม่ได้: {announcementError}</p> : visibleAnnouncements.length === 0 && <p className="muted">{authSource === 'supabase' && liveAnnouncements === null ? 'กำลังโหลดประกาศ…' : 'ยังไม่มีประกาศที่เผยแพร่'}</p>}</div>
           </section>
 
           <div className="callout callout-info"><AlertTriangle size={16} /><p>ตำแหน่งบนแผนที่และสถานะรถในหน้านี้เป็นข้อมูลตัวอย่าง</p></div>

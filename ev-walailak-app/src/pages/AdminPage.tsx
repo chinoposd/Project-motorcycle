@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, BadgeCheck, Check, CircleAlert, FileClock, LoaderCircle, RefreshCw, Search, ShieldCheck, UserRoundCheck, UserRoundX } from 'lucide-react';
+import { BadgeCheck, Check, CircleAlert, LoaderCircle, RefreshCw, Search, ShieldCheck, UserRoundCheck, UserRoundX } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { initialAccounts } from '../data/mockData';
 import type { AdminAccount, ApplicantRole, ReviewDecision } from '../auth/adminAccountReview';
 import { listPendingAdminAccounts, reviewPendingAdminAccount } from '../auth/adminAccountReview';
+import AdminPortalPanels from './AdminPortalPanels';
 import type { AccountRecord, UserStatus } from '../types';
 
 interface AdminPageProps {
   authSource: 'demo' | 'supabase';
+  onShowToast: (message: string) => void;
 }
 
 type DisplayAccount = Omit<AdminAccount, 'requestedRole'> & { requestedRole: string; status: UserStatus };
@@ -24,7 +26,7 @@ const demoAccounts: DisplayAccount[] = initialAccounts.map((account: AccountReco
   status: account.status,
 }));
 
-export default function AdminPage({ authSource }: AdminPageProps) {
+export default function AdminPage({ authSource, onShowToast }: AdminPageProps) {
   const isDemo = authSource === 'demo';
   const [pendingAccounts, setPendingAccounts] = useState<AdminAccount[]>([]);
   const [listState, setListState] = useState<'loading' | 'ready' | 'error'>(isDemo ? 'ready' : 'loading');
@@ -219,28 +221,8 @@ export default function AdminPage({ authSource }: AdminPageProps) {
           </dialog>
         </section>
 
-        <aside className="side-column">
-          <section className="panel service-settings-panel">
-            <div className="panel-heading"><div><div className="heading-with-icon"><ShieldCheck size={17} /><h2>เวลาขอเริ่ม Session</h2></div><p className="muted">Student / Employee · Manager ได้รับการยกเว้น</p></div><span className="panel-kicker">ยังไม่เชื่อมระบบจริง</span></div>
-            <div className="callout callout-info">ส่วนนี้ยังไม่เชื่อมฐานข้อมูล · การบันทึกยังไม่พร้อมใช้งาน</div>
-            <fieldset className="admin-disabled-fields" disabled>
-              <div className="time-range"><label><span>เริ่มเวลา</span><input type="time" defaultValue="08:00" /></label><label><span>สิ้นสุดเวลา</span><input type="time" defaultValue="17:00" /></label></div>
-              <label className="service-select"><span>สถานะการให้บริการ</span><select defaultValue="open"><option value="open">เปิดให้บริการ</option><option value="closed">หยุดให้บริการ</option></select></label>
-              <button className="button button-primary full-width" type="button"><Check size={16} />บันทึกการตั้งค่า</button>
-            </fieldset>
-          </section>
-          <section className="panel admin-tools-panel">
-            <div className="panel-heading"><div className="heading-with-icon"><Archive size={17} /><h2>การดูแลระบบ</h2></div><span className="panel-kicker">ยังไม่พร้อมใช้งาน</span></div>
-            <div className="callout callout-info">ประกาศ คำขอข้อมูลส่วนบุคคล และการเปิด Audit Log ยังไม่เชื่อมระบบจริง</div>
-            <fieldset className="admin-disabled-fields" disabled>
-              <button className="button button-outline full-width" type="button">หยุดให้บริการชั่วคราว</button>
-              <button className="button button-outline full-width" type="button"><FileClock size={15} />ดู Audit Log</button>
-              <div className="admin-links"><button type="button">ประกาศโครงการ</button><button type="button">คำขอใช้สิทธิข้อมูลส่วนบุคคล</button></div>
-            </fieldset>
-          </section>
-          <div className="permission-note"><div className="heading-with-icon"><ShieldCheck size={17} /><h2>สิทธิ์ผู้ดูแลระบบ</h2></div><p>ตรวจสอบบัญชีได้ทีละคน และบันทึกผลในประวัติการตรวจสอบ การอนุมัติบัญชีไม่ใช่การอนุญาตให้ใช้รถ</p></div>
-        </aside>
       </div>
+      <AdminPortalPanels isDemo={isDemo} pendingAccountCount={!isDemo && listState === 'ready' ? pendingAccounts.length : null} onShowToast={onShowToast} />
     </>
   );
 }

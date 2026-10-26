@@ -44,6 +44,12 @@ Sign in with that provisioned account using Supabase Auth. The account must have
 
 If the RPC is missing, apply the migration and restart/refresh the app. If access is denied, verify the signed-in account's profile role and status. If a request fails, inspect the Supabase project and migration history; do not add a service-role key to the frontend.
 
-## Scope of this migration
+## 4. Enable the Admin portal workflows
 
-Only Pending-account listing, individual review, and its audit write are connected. Service hours, service open/close, announcements, personal-data requests, and audit-log browsing remain unavailable from the app in this first slice. The audit table has no direct browser-client grants; the RPCs are the only client-callable path for the review workflow.
+Apply `supabase/migrations/20261026120000_admin_portal_workflows.sql` to the same intended project after reviewing it. It adds Admin-only RPCs for Driving Permission, Session hours, Pilot thresholds, announcements, personal-data requests, vehicle service state, and Audit Log. It also adds a signed-in user's own data-request form and published announcements on the Overview page.
+
+The migration does not connect to a real vehicle or telemetry source. The Service panel records the web Admin's service-state decisions; it must not be treated as live hardware status. Session-start days/hours have no invented default, and the saved window is not yet enforced by a real Session Start backend. Cancellation/No-show values are nullable and remain unset until Pilot values are approved. Dashboard warnings will remain unavailable until real event counts are provided by the Session workflow. No migration is applied to the hosted project by the app or this repository change.
+
+Announcements support role audiences, scheduled start, optional expiry, and an important notice popup shown once per signed-in user when no Session is Active. The effective publish timestamp is recorded. Test these flows with a real Admin and users of each role after migration deployment. The page shows all Admin sections even when the portal RPC is unavailable; write controls remain disabled in that state.
+
+All portal tables have RLS enabled and direct browser table grants revoked. Use the authenticated RPCs only. The Admin must be approved. Granting Driving Permission requires an explicit confirmation that the team verified induction; it remains separate from account approval. Reopening requires both service blocks to be cleared and a final Admin confirmation with a reason. Closing a privacy request records a decision and does not itself delete or change the user's data; follow the project's retention and legal review process.
