@@ -36,6 +36,8 @@ export default function ApprovalStatusPage({ user, onLogout }: ApprovalStatusPag
         <p className="account-status-kicker"><LockKeyhole size={14} aria-hidden="true" /> บัญชี Supabase · {status}</p>
         <h1 id="account-status-heading">{copy.title}</h1>
         <p className="account-status-description">{copy.description}</p>
+        {(status === 'Rejected' || status === 'Suspended') && user.accountStatusReason &&
+          <p className="account-status-description"><strong>เหตุผล:</strong> {user.accountStatusReason}</p>}
         <dl className="account-status-details">
           <div><dt>ชื่อ</dt><dd>{user.name}</dd></div>
           <div><dt>อีเมล</dt><dd>{user.email}</dd></div>

@@ -6,6 +6,7 @@ import type { DemoUser } from './demoAuth';
 export type AppUser = DemoUser & {
   authSource: 'demo' | 'supabase';
   accountStatus?: 'Pending' | 'Approved' | 'Rejected' | 'Suspended';
+  accountStatusReason?: string;
   drivingPermission?: boolean;
   phone?: string;
   avatarPath?: string | null;
@@ -108,7 +109,7 @@ async function resolveProfile(authUser: SupabaseAuthUser): Promise<SupabaseAuthR
   if (!supabase || !authUser.email) return { user: null, error: 'profile-missing' };
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, phone, avatar_path, requested_role, role, account_status, driving_permission')
+    .select('id, full_name, phone, avatar_path, requested_role, role, account_status, account_status_reason, driving_permission')
     .eq('id', authUser.id)
     .maybeSingle();
   if (error) return { user: null, error: 'request-failed' };
@@ -124,6 +125,7 @@ async function resolveProfile(authUser: SupabaseAuthUser): Promise<SupabaseAuthR
       role: profile.role,
       authSource: 'supabase',
       accountStatus: profile.status,
+      accountStatusReason: data.account_status_reason,
       drivingPermission: profile.drivingPermission,
       phone: data.phone,
       avatarPath: data.avatar_path,

@@ -40,7 +40,7 @@ Confirm the update affected exactly one row and the account is still `driving_pe
 
 ## 3. Sign in and review accounts
 
-Sign in with that provisioned account using Supabase Auth. The account must have both `role = 'Admin'` and `account_status = 'Approved'`. The Admin page will then show Pending applicants from Supabase. Verify each person's university affiliation outside the app, select the verified applicant role, check the affiliation confirmation, and approve or reject one account at a time. A rejection requires a reason. Approval does not grant Driving Permission.
+Sign in with that provisioned account using Supabase Auth. The account must have both `role = 'Admin'` and `account_status = 'Approved'`. The Admin page shows all accounts and filters Pending, Approved, Rejected, and Suspended. Verify each Pending applicant's university affiliation outside the app, select the verified applicant role, check the affiliation confirmation, and approve or reject one account at a time. A rejection requires a reason. Approval does not grant Driving Permission.
 
 If the RPC is missing, apply the migration and restart/refresh the app. If access is denied, verify the signed-in account's profile role and status. If a request fails, inspect the Supabase project and migration history; do not add a service-role key to the frontend.
 
@@ -53,3 +53,9 @@ The migration does not connect to a real vehicle or telemetry source. The Servic
 Announcements support role audiences, scheduled start, optional expiry, and an important notice popup shown once per signed-in user when no Session is Active. The effective publish timestamp is recorded. Test these flows with a real Admin and users of each role after migration deployment. The page shows all Admin sections even when the portal RPC is unavailable; write controls remain disabled in that state.
 
 All portal tables have RLS enabled and direct browser table grants revoked. Use the authenticated RPCs only. The Admin must be approved. Granting Driving Permission requires an explicit confirmation that the team verified induction; it remains separate from account approval. Reopening requires both service blocks to be cleared and a final Admin confirmation with a reason. Closing a privacy request records a decision and does not itself delete or change the user's data; follow the project's retention and legal review process.
+
+## 5. All accounts
+
+Migration `supabase/migrations/20261026050312_admin_all_accounts.sql` was applied to the same project on 26 October 2026. It adds the Admin-only full-account list and audited per-account changes. Name changes, role changes, suspension, restoration, and Driving Permission changes require a reason. Role/status changes cannot target the current Admin's own account, and the last approved Admin cannot be demoted or suspended. Role/status changes clear Driving Permission. The affected user can see the recorded rejection or suspension reason on the account status screen.
+
+The list RPC returns all current profiles to an approved Admin; it does not provide self-service appeal handling for Rejected/Suspended users. Do not use an Admin account as a driver account.

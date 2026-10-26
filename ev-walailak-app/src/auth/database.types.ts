@@ -13,7 +13,11 @@ export interface Database {
           requested_role: 'Student' | 'Employee';
           role: 'Student' | 'Employee' | 'Manager' | 'Admin';
           account_status: 'Pending' | 'Approved' | 'Rejected' | 'Suspended';
+          account_status_reason: string;
           driving_permission: boolean;
+          induction_confirmed: boolean;
+          induction_confirmed_at: string | null;
+          induction_confirmed_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -26,7 +30,11 @@ export interface Database {
           requested_role: 'Student' | 'Employee';
           role: 'Student' | 'Employee' | 'Manager' | 'Admin';
           account_status?: 'Pending' | 'Approved' | 'Rejected' | 'Suspended';
+          account_status_reason?: string;
           driving_permission?: boolean;
+          induction_confirmed?: boolean;
+          induction_confirmed_at?: string | null;
+          induction_confirmed_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -39,7 +47,11 @@ export interface Database {
           requested_role?: 'Student' | 'Employee';
           role?: 'Student' | 'Employee' | 'Manager' | 'Admin';
           account_status?: 'Pending' | 'Approved' | 'Rejected' | 'Suspended';
+          account_status_reason?: string;
           driving_permission?: boolean;
+          induction_confirmed?: boolean;
+          induction_confirmed_at?: string | null;
+          induction_confirmed_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -48,6 +60,14 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      admin_list_accounts: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      admin_update_account: {
+        Args: { p_account_id: string; p_action: string; p_value: string; p_reason: string };
+        Returns: Json;
+      };
       admin_portal_snapshot: {
         Args: Record<PropertyKey, never>;
         Returns: Json;

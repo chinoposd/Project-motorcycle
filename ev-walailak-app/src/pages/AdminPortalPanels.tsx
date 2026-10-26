@@ -161,7 +161,7 @@ export default function AdminPortalPanels({ isDemo, pendingAccountCount = null, 
 
   return <div className="admin-portal-content">
     <nav className="admin-section-nav" aria-label="ส่วนงาน Admin">
-      <a href="#admin-dashboard">Dashboard</a><a href="#admin-driving-permission">Driving Permission</a>
+      <a href="#admin-accounts">บัญชีทั้งหมด</a><a href="#admin-dashboard">Dashboard</a><a href="#admin-driving-permission">Driving Permission</a>
       <a href="#admin-session-settings">เวลาเริ่ม Session</a><a href="#admin-threshold-settings">เกณฑ์ Cancellation / No-show</a>
       <a href="#admin-privacy-requests">คำขอข้อมูลส่วนบุคคล</a><a href="#admin-announcements">ประกาศ</a>
       <a href="#admin-audit-log">Audit Log</a><a href="#admin-service-control">สถานะบริการ</a>

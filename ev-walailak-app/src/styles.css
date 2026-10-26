@@ -389,9 +389,10 @@ svg { flex: none; }
 .admin-feedback.error { border-color: #f2c2c0; color: #9c3734; background: #fff5f4; }
 .admin-feedback .text-button { margin-left: 8px; }
 .account-toolbar { display: grid; grid-template-columns: minmax(0,1fr) minmax(180px, 240px); align-items: center; gap: 12px; margin-bottom: 12px; }
-.account-toolbar.live-account-toolbar { grid-template-columns: minmax(0,1fr) auto; }
+.account-toolbar.live-account-toolbar { grid-template-columns: minmax(0,1fr) minmax(200px,280px) auto; }
 .account-filters { min-width: 0; display: flex; flex-wrap: wrap; gap: 3px; }
 .account-filters button { min-height: 28px; padding: 5px 8px; border-color: transparent; font-size: 9px; }
+.account-filters button span { margin-left: 3px; padding: 1px 5px; border-radius: 9px; background: #e8eef7; color: var(--muted); }
 .search-field { min-width: 0; display: flex; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); background: #fff; }
 .search-field input { width: 100%; min-width: 0; height: 32px; padding: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 10px; }
 .search-field input:focus-visible { outline: 0; }
@@ -428,8 +429,11 @@ svg { flex: none; }
 .admin-review-field { display: grid; gap: 5px; color: var(--ink); font-size: 10px; font-weight: 650; }
 .admin-review-dialog .admin-review-field { font-size: 13px; }
 .admin-review-field b { color: var(--red); }
-.admin-review-field select, .admin-review-field textarea { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: #fff; font: inherit; font-weight: 400; }
+.admin-review-field input, .admin-review-field select, .admin-review-field textarea { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: #fff; font: inherit; font-weight: 400; }
 .admin-review-dialog .admin-review-field select { min-height: 44px; }
+.admin-account-action-choices { flex-wrap: wrap; }
+.admin-account-action-form { display: grid; gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: 8px; background: #f7faff; }
+.admin-account-action-form > strong { font-size: 13px; }
 .admin-review-field textarea { min-height: 68px; resize: vertical; }
 .admin-review-field :focus-visible, .admin-affiliation-check input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .admin-affiliation-check { display: flex; align-items: flex-start; gap: 8px; padding: 9px; border: 1px solid #d7e3ef; border-radius: 6px; color: #40556e; background: #f8fafc; font-size: 10px; line-height: 1.45; }
@@ -586,6 +590,7 @@ svg { flex: none; }
   .alert-title-row { align-items: flex-start; }
   .alert-footer { padding-left: 33px; }
   .account-toolbar { grid-template-columns: 1fr; }
+  .account-toolbar.live-account-toolbar { grid-template-columns: 1fr; }
   .account-toolbar.live-account-toolbar .search-field { grid-column: 1; }
   .account-toolbar.live-account-toolbar > .button { grid-column: 1; justify-self: start; }
   .admin-users-panel .panel-heading { align-items: flex-start; }

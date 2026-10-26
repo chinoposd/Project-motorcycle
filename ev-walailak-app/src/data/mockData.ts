@@ -64,5 +64,6 @@ export const initialAccounts: AccountRecord[] = [
   { id: 'u1', name: 'กมลชนก ศรีสุข', email: 'kamonchanok@example.edu', role: 'Student', status: 'Pending' },
   { id: 'u2', name: 'นภัส พรหมดี', email: 'napas@example.edu', role: 'Student', status: 'Approved' },
   { id: 'u3', name: 'ธนา วัฒนกิจ', email: 'thana@example.edu', role: 'Employee', status: 'Suspended' },
+  { id: 'u4', name: 'บัญชีตัวอย่างที่ไม่ผ่าน', email: 'rejected@example.edu', role: 'Student', status: 'Rejected' },
 ];
 
