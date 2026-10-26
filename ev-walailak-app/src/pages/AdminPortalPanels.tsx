@@ -19,6 +19,7 @@ const demoSnapshot: AdminPortalSnapshot = {
   permission_accounts: [
     { id: 'demo-student', name: 'นักศึกษาตัวอย่าง', email: 'student@example.com', role: 'Student', induction_confirmed: false, driving_permission: false },
     { id: 'demo-employee', name: 'บุคลากรตัวอย่าง', email: 'employee@example.com', role: 'Employee', induction_confirmed: true, driving_permission: true },
+    { id: 'demo-manager', name: 'ผู้จัดการตัวอย่าง', email: 'manager@example.com', role: 'Manager', induction_confirmed: false, driving_permission: false },
   ],
   settings: { session_start: null, session_end: null, allowed_weekdays: null, cancellation_limit: null, cancellation_cooldown_hours: null, no_show_limit: null, no_show_cooldown_hours: null, effective_from: '' },
   announcements: [], privacy_requests: [],

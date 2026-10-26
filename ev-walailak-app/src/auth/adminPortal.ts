@@ -16,7 +16,7 @@ export interface PortalSettings {
   effective_from: string;
 }
 
-export interface PermissionAccount { id: string; name: string; email: string; role: 'Student' | 'Employee'; induction_confirmed: boolean; driving_permission: boolean; }
+export interface PermissionAccount { id: string; name: string; email: string; role: 'Student' | 'Employee' | 'Manager'; induction_confirmed: boolean; driving_permission: boolean; }
 export type AnnouncementRole = 'Student' | 'Employee' | 'Manager' | 'Admin';
 export interface PortalAnnouncement { id: string; title: string; body: string; published: boolean; important: boolean; audience_roles: AnnouncementRole[]; starts_at: string | null; ends_at: string | null; published_at: string | null; updated_at: string; }
 export interface PublishedAnnouncement { id: string; title: string; body: string; important: boolean; published_at: string; seen: boolean; }
@@ -56,7 +56,9 @@ export async function loadAdminPortal(): Promise<PortalResult<AdminPortalSnapsho
 
 export async function runAdminPortalAction(action: PortalAction, payload: Record<string, unknown>): Promise<PortalResult<Json>> {
   if (!supabase) return { data: null, error: 'ยังไม่ได้ตั้งค่า Supabase สำหรับระบบจริง' };
-  const { data, error } = await supabase.rpc('admin_portal_action', { p_action: action, p_payload: payload as Json });
+  const { data, error } = action === 'set_driving_permission'
+    ? await supabase.rpc('admin_set_driving_permission', { p_payload: payload as Json })
+    : await supabase.rpc('admin_portal_action', { p_action: action, p_payload: payload as Json });
   return error ? { data: null, error: mapPortalError(error.code, error.message) } : { data, error: null };
 }
 

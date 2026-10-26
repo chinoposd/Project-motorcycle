@@ -72,6 +72,10 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       };
+      admin_set_driving_permission: {
+        Args: { p_payload: Json };
+        Returns: Json;
+      };
       admin_portal_action: {
         Args: { p_action: string; p_payload: Json };
         Returns: Json;
