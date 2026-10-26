@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { BadgeCheck, Bike, Check, Circle, Eye, EyeOff, LockKeyhole, Mail, Phone, ShieldCheck, UserRound, UserRoundPlus, X } from 'lucide-react';
+import { registerDemoUser } from '../auth/demoAuth';
+import { signUpWithSupabase, type AppUser } from '../auth/supabaseAuth';
+import { supabaseConfig } from '../auth/supabaseClient';
 
 type ApplicantType = '' | 'Student' | 'Employee';
 type FormField = 'firstName' | 'lastName' | 'phone' | 'email' | 'applicantType' | 'password' | 'confirmPassword';
@@ -10,6 +13,7 @@ type RegistrationErrors = Partial<Record<FormField, string>>;
 
 interface RegisterPageProps {
   onClose: () => void;
+  onLogin: (user: AppUser) => void;
 }
 
 const initialForm: RegistrationForm = {
@@ -48,10 +52,12 @@ function FormFieldError({ id, message }: { id: string; message?: string }) {
   return message ? <span className="register-field-error" id={`${id}-error`} role="alert">{message}</span> : null;
 }
 
-export default function RegisterPage({ onClose }: RegisterPageProps) {
+export default function RegisterPage({ onClose, onLogin }: RegisterPageProps) {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<RegistrationErrors>({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [serverMessage, setServerMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -100,14 +106,66 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
     const nextForm = { ...form, [name]: value } as RegistrationForm;
     setForm(nextForm);
     setHasSubmitted(false);
+    setServerMessage('');
     if (Object.keys(errors).length > 0) setErrors(validateForm(nextForm));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextErrors = validateForm(form);
     setErrors(nextErrors);
-    setHasSubmitted(true);
+    setHasSubmitted(false);
+    setServerMessage('');
+    if (Object.keys(nextErrors).length > 0 || !form.applicantType) {
+      setHasSubmitted(true);
+      return;
+    }
+    setIsSubmitting(true);
+    const name = `${form.firstName.trim()} ${form.lastName.trim()}`;
+    try {
+      if (supabaseConfig.mode === 'configured') {
+        const result = await signUpWithSupabase({
+          name,
+          email: form.email,
+          phone: form.phone.trim(),
+          password: form.password,
+          requestedRole: form.applicantType,
+        });
+        if (result.error) {
+          setServerMessage(result.error === 'signup-failed'
+            ? 'อีเมลนี้มีบัญชีอยู่แล้ว · ลองเข้าสู่ระบบหรือขอกู้รหัสผ่าน'
+            : result.error === 'invalid-registration' ? 'ตรวจสอบข้อมูลและรูปแบบรหัสผ่านอีกครั้ง'
+              : 'สมัครไม่สำเร็จ · ตรวจสอบการเชื่อมต่อ Supabase แล้วลองอีกครั้ง');
+          return;
+        }
+        if (result.confirmationRequired) {
+          setHasSubmitted(true);
+          setServerMessage('ส่งคำสมัครแล้ว · ตรวจอีเมลเพื่อยืนยันบัญชี จากนั้นบัญชีจะรอผู้ดูแลอนุมัติ');
+          return;
+        }
+        if (result.user) {
+          onLogin(result.user);
+          onClose();
+          return;
+        }
+        setServerMessage('สร้างบัญชีไม่สำเร็จ · กรุณาลองอีกครั้ง');
+        return;
+      }
+
+      const result = await registerDemoUser(name, form.email, form.password, undefined, form.applicantType);
+      if (result.error || !result.user) {
+        setServerMessage(result.error === 'email-in-use' ? 'อีเมลนี้มีบัญชีตัวอย่างในเบราว์เซอร์แล้ว'
+          : result.error === 'crypto-unavailable' ? 'เบราว์เซอร์นี้ไม่รองรับการสร้างบัญชีตัวอย่าง'
+            : 'บันทึกบัญชีตัวอย่างไม่สำเร็จ · ตรวจสอบพื้นที่จัดเก็บในเบราว์เซอร์');
+        return;
+      }
+      onLogin({ ...result.user, authSource: 'demo' });
+      onClose();
+    } catch {
+      setServerMessage('ดำเนินการไม่สำเร็จ · ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const confirmMismatch = Boolean(form.confirmPassword) && form.password !== form.confirmPassword;
@@ -134,11 +192,12 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
               <div className="register-feedback register-feedback-success" role="status">
                 <BadgeCheck size={19} aria-hidden="true" />
                 <div>
-                  <strong>ตรวจสอบข้อมูลครบแล้ว</strong>
-                  <span>นี่เป็นหน้าสาธิต ยังไม่ได้สร้างบัญชีหรือบันทึกข้อมูล เมื่อเชื่อมต่อระบบจริง บัญชีใหม่จะรอ Admin อนุมัติ</span>
+                  <strong>{supabaseConfig.mode === 'configured' ? 'ส่งคำสมัครแล้ว' : 'สร้างบัญชีตัวอย่างแล้ว'}</strong>
+                  <span>{serverMessage || (supabaseConfig.mode === 'configured' ? 'ตรวจอีเมลเพื่อยืนยันบัญชี บัญชีจะรอ Admin อนุมัติ' : 'บันทึกเฉพาะในเบราว์เซอร์นี้และไม่ใช่บัญชีจริง')}</span>
                 </div>
               </div>
             )}
+            {serverMessage && !(hasSubmitted && Object.keys(errors).length === 0) && <p className="register-field-error" role="alert">{serverMessage}</p>}
 
             <form className="register-form" noValidate onSubmit={handleSubmit}>
               <div className="register-field-grid">
@@ -204,9 +263,9 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
 
               <div className="register-actions">
                 <button className="button button-outline register-cancel" onClick={onClose} type="button">ยกเลิก</button>
-                <button className="button button-primary register-submit" type="submit">สมัครสมาชิก</button>
+                <button className="button button-primary register-submit" disabled={isSubmitting} type="submit">{isSubmitting ? 'กำลังส่งข้อมูล…' : 'สมัครสมาชิก'}</button>
               </div>
-              <p className="register-privacy-note"><LockKeyhole size={13} aria-hidden="true" />ข้อมูลนี้ยังอยู่ในหน้าจอเท่านั้นและจะไม่ถูกส่งหรือบันทึก</p>
+              <p className="register-privacy-note"><LockKeyhole size={13} aria-hidden="true" />{supabaseConfig.mode === 'configured' ? 'ข้อมูลจะส่งไปยัง Supabase Auth เพื่อสร้างบัญชีจริง' : 'บัญชีทดลองบันทึกเฉพาะในเบราว์เซอร์นี้ · ไม่ใช่บัญชีจริง'}</p>
             </form>
           </div>
         </div>

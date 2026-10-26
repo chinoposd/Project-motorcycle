@@ -17,6 +17,7 @@ export type SupabaseAuthError =
   | 'signup-failed'
   | 'profile-missing'
   | 'profile-invalid'
+  | 'password-reset-failed'
   | 'request-failed';
 
 export interface SupabaseAuthResult {
@@ -28,6 +29,7 @@ export interface SupabaseAuthResult {
 export interface SupabaseRegistration {
   name: string;
   email: string;
+  phone?: string;
   password: string;
   requestedRole: 'Student' | 'Employee';
 }
@@ -47,6 +49,7 @@ export async function signUpWithSupabase(input: SupabaseRegistration): Promise<S
   const email = input.email.trim().toLowerCase();
   if (!name || name.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
     || input.password.length < 8 || input.password.length > 256
+    || (input.phone?.length ?? 0) > 32
     || !isApplicantRole(input.requestedRole)) {
     return { user: null, error: 'invalid-registration' };
   }
@@ -57,6 +60,7 @@ export async function signUpWithSupabase(input: SupabaseRegistration): Promise<S
     options: {
       data: {
         full_name: name,
+        phone: input.phone?.trim() ?? '',
         requested_role: input.requestedRole,
       },
     },
@@ -76,6 +80,22 @@ export async function getCurrentSupabaseUser(): Promise<SupabaseAuthResult> {
 
 export async function signOutSupabase(): Promise<void> {
   if (supabase) await supabase.auth.signOut();
+}
+
+export async function sendPasswordResetEmail(email: string): Promise<SupabaseAuthError | null> {
+  if (!supabase) return 'not-configured';
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return 'invalid-registration';
+  const redirectTo = `${window.location.origin}/?recovery=1`;
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
+  return error ? 'password-reset-failed' : null;
+}
+
+export async function updateSupabasePassword(password: string): Promise<SupabaseAuthError | null> {
+  if (!supabase) return 'not-configured';
+  if (password.length < 9 || password.length > 256) return 'invalid-registration';
+  const { error } = await supabase.auth.updateUser({ password });
+  return error ? 'password-reset-failed' : null;
 }
 
 async function resolveProfile(authUser: SupabaseAuthUser): Promise<SupabaseAuthResult> {

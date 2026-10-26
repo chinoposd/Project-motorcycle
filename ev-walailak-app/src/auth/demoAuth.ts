@@ -97,6 +97,7 @@ export async function registerDemoUser(
   email: string,
   password: string,
   storage?: SessionStorageLike,
+  requestedRole: 'Student' | 'Employee' = 'Student',
 ): Promise<RegistrationResult> {
   const normalizedName = name.trim();
   const normalizedEmail = normalizeEmail(email);
@@ -124,7 +125,7 @@ export async function registerDemoUser(
       id: `registered-${cryptoProvider.randomUUID()}`,
       name: normalizedName,
       email: normalizedEmail,
-      role: 'Student',
+      role: requestedRole,
     };
     const storedAccount: StoredDemoAccount = {
       ...user,
@@ -146,6 +147,12 @@ export function getDemoCredentials(role: UserRole): { email: string; password: s
   const account = DEMO_ACCOUNTS.find((candidate) => candidate.role === role);
   if (!account) throw new Error('Unsupported demo role');
   return { email: account.email, password: account.password };
+}
+
+export function isDemoAccountEmail(email: string, storage?: SessionStorageLike): boolean {
+  const normalizedEmail = normalizeEmail(email);
+  if (DEMO_ACCOUNTS.some((account) => account.email === normalizedEmail)) return true;
+  return readStoredAccounts(getAccountStorage(storage))?.some((account) => account.email === normalizedEmail) ?? false;
 }
 
 export function isPageAllowed(role: UserRole, page: PageId): boolean {
@@ -295,7 +302,7 @@ function readStoredAccounts(storage: SessionStorageLike | null): StoredDemoAccou
 }
 
 function isStoredDemoAccount(value: unknown): value is StoredDemoAccount {
-  if (!isRecord(value) || value.role !== 'Student') return false;
+  if (!isRecord(value) || (value.role !== 'Student' && value.role !== 'Employee')) return false;
   return Object.keys(value).sort().join(',') === 'email,id,iterations,name,passwordHash,passwordSalt,role'
     && typeof value.id === 'string'
     && value.id.startsWith('registered-')

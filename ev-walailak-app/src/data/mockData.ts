@@ -1,4 +1,4 @@
-import type { AccountRecord, AlertRecord } from '../types';
+import type { AccountRecord, AlertRecord, DemoTripRecord, PrototypeAnnouncement } from '../types';
 
 export const vehicle = {
   id: 'EV-01',
@@ -9,16 +9,16 @@ export const vehicle = {
   updatedAt: '10:42:18',
 };
 
-export const announcements = [
+export const announcements: PrototypeAnnouncement[] = [
   { id: 'a1', title: 'ทดลองใช้งานระบบต้นแบบ', detail: 'โปรดตรวจสภาพรถและปฏิบัติตามคู่มือความปลอดภัย', time: 'วันนี้' },
   { id: 'a2', title: 'แนวปฏิบัติการใช้รถช่วงฝนตก', detail: 'ขับขี่ด้วยความระมัดระวังและหลีกเลี่ยงเส้นทางที่มีน้ำขัง', time: 'ประกาศโครงการ' },
   { id: 'a3', title: 'ปรับปรุงจุดคืนรถ', detail: 'ตรวจสอบ Return Zone ก่อนส่งคำขอจบ Session', time: 'ประกาศโครงการ' },
 ];
 
-export const sessionHistory = [
-  { date: 'วันนี้ · 10:18', user: 'นภัส พรหมดี', duration: '24 นาที', distance: '3.8 กม.', status: 'เสร็จสมบูรณ์' },
-  { date: 'เมื่อวาน · 15:42', user: 'กมลชนก ศรีสุข', duration: '32 นาที', distance: '4.6 กม.', status: 'เสร็จสมบูรณ์' },
-  { date: '18 ต.ค. · 09:16', user: 'ธนา วัฒนกิจ', duration: '19 นาที', distance: '2.9 กม.', status: 'เสร็จสมบูรณ์' },
+export const sessionHistory: DemoTripRecord[] = [
+  { sessionId: 'trip-demo-student-1', userId: 'demo-student', driverName: 'นภัส พรหมดี', startedAt: '2026-10-26T10:18:00+07:00', endedAt: '2026-10-26T10:42:00+07:00', durationMinutes: 24, distanceKm: 3.8 },
+  { sessionId: 'trip-demo-student-2', userId: 'demo-student', driverName: 'นภัส พรหมดี', startedAt: '2026-10-25T15:42:00+07:00', endedAt: '2026-10-25T16:14:00+07:00', durationMinutes: 32, distanceKm: 4.6 },
+  { sessionId: 'trip-demo-employee-1', userId: 'demo-employee', driverName: 'บุคลากรทดลอง', startedAt: '2026-10-18T09:16:00+07:00', endedAt: '2026-10-18T09:35:00+07:00', durationMinutes: 19, distanceKm: 2.9 },
 ];
 
 export const initialAlerts: AlertRecord[] = [
@@ -61,8 +61,8 @@ export const systemHealth = [
 ];
 
 export const initialAccounts: AccountRecord[] = [
-  { id: 'u1', name: 'กมลชนก ศรีสุข', email: 'kamonchanok@example.edu', role: 'Student', status: 'Pending' },
-  { id: 'u2', name: 'นภัส พรหมดี', email: 'napas@example.edu', role: 'Student', status: 'Approved' },
-  { id: 'u3', name: 'ธนา วัฒนกิจ', email: 'thana@example.edu', role: 'Employee', status: 'Suspended' },
+  { id: 'u1', name: 'กมลชนก ศรีสุข', email: 'kamonchanok@example.edu', role: 'Student', status: 'Pending', drivingPermission: false },
+  { id: 'u2', name: 'นภัส พรหมดี', email: 'napas@example.edu', role: 'Student', status: 'Approved', drivingPermission: true },
+  { id: 'u3', name: 'ธนา วัฒนกิจ', email: 'thana@example.edu', role: 'Employee', status: 'Suspended', drivingPermission: false },
 ];
 
