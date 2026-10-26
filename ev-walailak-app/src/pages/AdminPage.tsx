@@ -46,7 +46,7 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
   const [rejectionReason, setRejectionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState('');
-  const [accountAction, setAccountAction] = useState<AccountAction | null>(null);
+  const [accountAction, setAccountAction] = useState<AccountAction | 'promote_manager' | null>(null);
   const [actionValue, setActionValue] = useState('');
   const [actionReason, setActionReason] = useState('');
   const [inductionConfirmed, setInductionConfirmed] = useState(false);
@@ -160,7 +160,13 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
 
   async function submitAccountAction() {
     if (!selectedAccount || !accountAction || isDemo || submitting) return;
+    const promotingManager = accountAction === 'promote_manager';
     if (actionReason.trim().length < 5) { setReviewError('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร'); return; }
+    if (promotingManager && (selectedAccount.status !== 'Approved'
+      || (selectedAccount.role !== 'Student' && selectedAccount.role !== 'Employee')
+      || selectedAccount.id === currentAdminId)) {
+      setReviewError('แต่งตั้ง Manager ได้เฉพาะบัญชี Student หรือ Employee ที่อนุมัติแล้ว'); return;
+    }
     if (accountAction === 'rename' && (!actionValue.trim() || actionValue.trim() === selectedAccount.fullName)) {
       setReviewError('ระบุชื่อใหม่ที่ต่างจากชื่อเดิม'); return;
     }
@@ -170,16 +176,21 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
     if (accountAction === 'grant_driving' && !inductionConfirmed) {
       setReviewError('ต้องยืนยันว่าทีมงานตรวจการผ่านการแนะนำแล้ว'); return;
     }
-    if ((accountAction === 'suspend' || (accountAction === 'change_role' && actionValue === 'Admin'))
-      && !window.confirm(accountAction === 'suspend' ? 'ยืนยันระงับบัญชีนี้และปิด Driving Permission?' : 'ยืนยันเปลี่ยนเป็น Admin? บัญชี Admin ใช้ขับรถไม่ได้')) return;
+    if ((accountAction === 'suspend' || promotingManager || (accountAction === 'change_role' && (actionValue === 'Admin' || actionValue === 'Manager')))
+      && !window.confirm(accountAction === 'suspend'
+        ? 'ยืนยันระงับบัญชีนี้และปิด Driving Permission?'
+        : promotingManager || actionValue === 'Manager'
+          ? 'ยืนยันแต่งตั้งบัญชีนี้เป็น Manager? Driving Permission จะปิดและต้องตรวจเปิดใหม่แยกต่างหาก'
+          : 'ยืนยันเปลี่ยนเป็น Admin? บัญชี Admin ใช้ขับรถไม่ได้')) return;
     setSubmitting(true); setReviewError(''); setSuccessMessage('');
-    const result = await updateAdminAccount({ accountId: selectedAccount.id, action: accountAction,
-      value: accountAction === 'grant_driving' ? 'induction_confirmed' : actionValue, reason: actionReason });
+    const result = await updateAdminAccount({ accountId: selectedAccount.id, action: promotingManager ? 'change_role' : accountAction,
+      value: promotingManager ? 'Manager' : accountAction === 'grant_driving' ? 'induction_confirmed' : actionValue, reason: actionReason });
     setSubmitting(false);
     if (result.error) { setReviewError(result.error); return; }
     setSelectedAccount(null);
     setSuccessMessage(accountAction === 'grant_driving' ? 'ยืนยันการแนะนำและเปิด Driving Permission แล้ว · บันทึก Audit Log แล้ว'
       : accountAction === 'revoke_driving' ? 'ปิด Driving Permission และบันทึก Audit Log แล้ว'
+      : promotingManager || accountAction === 'change_role' && actionValue === 'Manager' ? 'แต่งตั้ง Manager แล้ว · บันทึก Audit Log แล้ว · Driving Permission ต้องตรวจและเปิดใหม่แยกต่างหาก'
       : 'บันทึกการจัดการบัญชีและ Audit Log แล้ว · Driving Permission ต้องตรวจแยกเมื่อบทบาทหรือสถานะเปลี่ยน');
     void loadAccounts();
   }
@@ -192,7 +203,7 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
           <div className="panel-heading">
             <div>
               <h2>บัญชีทั้งหมด</h2>
-              <p className="muted">{isDemo ? 'ข้อมูลตัวอย่าง · อ่านได้อย่างเดียว' : 'ค้นหาชื่อหรืออีเมล · กรองสถานะ · ตรวจสอบและจัดการทีละบัญชี'}</p>
+              <p className="muted">{isDemo ? 'ข้อมูลตัวอย่าง · อ่านได้อย่างเดียว' : 'ค้นหาชื่อหรืออีเมล · กรองสถานะ · แต่งตั้ง Manager จากบัญชีที่อนุมัติแล้ว'}</p>
             </div>
             <span className="panel-kicker">{isDemo ? 'ข้อมูลตัวอย่าง' : listState === 'ready' ? `${accounts.length} บัญชี · ${pendingCount} รอตรวจ` : 'กำลังอ่านบัญชี'}</span>
           </div>
@@ -272,6 +283,7 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
                   <p className="muted">การแก้ชื่อ บทบาท หรือสถานะต้องบันทึกเหตุผลและ Audit Log · ไม่เปลี่ยนอีเมล</p>
                   <div className="button-row admin-account-action-choices">
                     <button className="button button-outline button-small" type="button" onClick={() => { setAccountAction('rename'); setActionValue(selectedAccount.fullName); setActionReason(''); setReviewError(''); }}>แก้ชื่อ</button>
+                    {selectedAccount.status === 'Approved' && (selectedAccount.role === 'Student' || selectedAccount.role === 'Employee') && selectedAccount.id !== currentAdminId && <button className="button button-primary button-small" type="button" onClick={() => { setAccountAction('promote_manager'); setActionValue(''); setActionReason(''); setReviewError(''); }}>แต่งตั้ง Manager</button>}
                     {(selectedAccount.status === 'Approved' || selectedAccount.status === 'Suspended') && selectedAccount.id !== currentAdminId && <button className="button button-outline button-small" type="button" onClick={() => { setAccountAction('change_role'); setActionValue(selectedAccount.role); setActionReason(''); setReviewError(''); }}>เปลี่ยนบทบาท</button>}
                     {selectedAccount.status === 'Approved' && selectedAccount.id !== currentAdminId && <button className="button button-danger button-small" type="button" onClick={() => { setAccountAction('suspend'); setActionValue(''); setActionReason(''); setReviewError(''); }}>ระงับบัญชี</button>}
                     {selectedAccount.status === 'Suspended' && selectedAccount.id !== currentAdminId && <button className="button button-outline button-small" type="button" onClick={() => { setAccountAction('restore'); setActionValue(''); setActionReason(''); setReviewError(''); }}>คืนสถานะ Approved</button>}
@@ -280,10 +292,11 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
                   </div>
                   {selectedAccount.id === currentAdminId && <small className="muted">บัญชี Admin ปัจจุบันเปลี่ยนบทบาทหรือสถานะตนเองไม่ได้</small>}
                   {accountAction && <div className="admin-account-action-form">
-                    <strong>{accountAction === 'rename' ? 'แก้ชื่อ–นามสกุล' : accountAction === 'change_role' ? 'เปลี่ยนบทบาท' : accountAction === 'suspend' ? 'ระงับบัญชี' : accountAction === 'restore' ? 'คืนสถานะบัญชี' : accountAction === 'grant_driving' ? 'ยืนยันการแนะนำและให้สิทธิ์ขับ' : 'ปิดสิทธิ์ขับ'}</strong>
+                    <strong>{accountAction === 'rename' ? 'แก้ชื่อ–นามสกุล' : accountAction === 'promote_manager' ? 'แต่งตั้งเป็น Manager' : accountAction === 'change_role' ? 'เปลี่ยนบทบาท' : accountAction === 'suspend' ? 'ระงับบัญชี' : accountAction === 'restore' ? 'คืนสถานะบัญชี' : accountAction === 'grant_driving' ? 'ยืนยันการแนะนำและให้สิทธิ์ขับ' : 'ปิดสิทธิ์ขับ'}</strong>
                     {accountAction === 'rename' && <label className="admin-review-field"><span>ชื่อ–นามสกุลใหม่</span><input value={actionValue} onChange={(event) => setActionValue(event.target.value)} maxLength={80} disabled={submitting} /></label>}
+                    {accountAction === 'promote_manager' && <p className="muted">เปลี่ยนบทบาทจาก {selectedAccount.role} เป็น Manager</p>}
                     {accountAction === 'change_role' && <label className="admin-review-field"><span>บทบาทใหม่</span><select value={actionValue} onChange={(event) => setActionValue(event.target.value)} disabled={submitting}>{roles.map((role) => <option value={role} key={role}>{role}</option>)}</select></label>}
-                    {(accountAction === 'change_role' || accountAction === 'suspend' || accountAction === 'restore') && <p className="admin-driving-note"><ShieldCheck size={14} />การเปลี่ยนบทบาท/สถานะจะปิด Driving Permission; ต้องตรวจและเปิดใหม่แยกต่างหาก</p>}
+                    {(accountAction === 'change_role' || accountAction === 'promote_manager' || accountAction === 'suspend' || accountAction === 'restore') && <p className="admin-driving-note"><ShieldCheck size={14} />การเปลี่ยนบทบาท/สถานะจะปิด Driving Permission; ต้องตรวจและเปิดใหม่แยกต่างหาก</p>}
                     {accountAction === 'grant_driving' && <label className="admin-affiliation-check"><input type="checkbox" checked={inductionConfirmed} onChange={(event) => setInductionConfirmed(event.target.checked)} disabled={submitting} /><span>ทีมงานตรวจและยืนยันแล้วว่าผู้ใช้นี้ผ่านการแนะนำ</span></label>}
                     <label className="admin-review-field"><span>เหตุผล <b>*</b></span><textarea value={actionReason} onChange={(event) => setActionReason(event.target.value)} rows={2} minLength={5} maxLength={1000} disabled={submitting} placeholder="ระบุเหตุผลอย่างน้อย 5 ตัวอักษร" /></label>
                     {reviewError && <div className="admin-feedback error" role="alert"><CircleAlert size={17} /><span>{reviewError}</span></div>}
