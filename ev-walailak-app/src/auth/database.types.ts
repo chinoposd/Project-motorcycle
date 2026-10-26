@@ -60,6 +60,12 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      admin_operations_snapshot: { Args: { p_date: string }; Returns: Json };
+      admin_operations_action: { Args: { p_action: string; p_payload: Json }; Returns: Json };
+      my_operations_snapshot: { Args: Record<PropertyKey, never>; Returns: Json };
+      user_operations_action: { Args: { p_action: string; p_payload: Json }; Returns: Json };
+      request_web_session: { Args: { p_inspection_confirmed: boolean; p_terms_confirmed: boolean; p_request_id: string }; Returns: Json };
+      session_owner_action: { Args: { p_session_id: string; p_action: string }; Returns: Json };
       admin_list_accounts: {
         Args: Record<PropertyKey, never>;
         Returns: Json;

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { test } from 'node:test';
 import { createServer } from 'vite';
 
-test('AppShell says when Supabase handles the account but vehicle data is still a prototype', async () => {
+test('AppShell labels authenticated vehicle state as awaiting verified data', async () => {
   const vite = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom' });
   try {
     const { default: AppShell } = await vite.ssrLoadModule('/src/components/AppShell.tsx');
@@ -19,7 +19,8 @@ test('AppShell says when Supabase handles the account but vehicle data is still 
     }));
 
     assert.match(html, /บัญชีเชื่อมต่อ Supabase/);
-    assert.match(html, /ข้อมูลรถและ Session เป็นข้อมูลตัวอย่าง/);
+    assert.match(html, /สถานะรถและ Session จะแสดงเมื่อมีข้อมูลที่ยืนยันจากระบบ/);
+    assert.doesNotMatch(html, /หน้าจอนี้ใช้ข้อมูลจำลอง/);
   } finally {
     await vite.close();
   }

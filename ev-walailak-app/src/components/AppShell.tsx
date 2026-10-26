@@ -111,12 +111,12 @@ export default function AppShell({ authSource, page, breadcrumbLabel, breadcrumb
             ))}
           </ol>
         </nav>
-        <div className="prototype-note"><LockKeyhole size={14} aria-hidden="true" /><span>{authSource === 'supabase' ? 'ข้อมูลรถและ Session เป็นข้อมูลตัวอย่าง · บัญชีเชื่อมต่อ Supabase' : 'ข้อมูลตัวอย่าง · ยังไม่เชื่อมต่อรถหรือบัญชีจริง'}</span></div>
+        <div className="prototype-note"><LockKeyhole size={14} aria-hidden="true" /><span>{authSource === 'supabase' ? 'บัญชีเชื่อมต่อ Supabase · สถานะรถและ Session จะแสดงเมื่อมีข้อมูลที่ยืนยันจากระบบ' : 'ข้อมูลตัวอย่าง · ยังไม่เชื่อมต่อรถหรือบัญชีจริง'}</span></div>
         {children}
       </main>
       <footer className="site-footer">
         <div><strong>EV Walailak</strong><span>มหาวิทยาลัยวลัยลักษณ์ · ระบบรถจักรยานยนต์ไฟฟ้าต้นแบบ</span></div>
-        <span>หน้าจอนี้ใช้ข้อมูลจำลอง</span>
+        <span>{authSource === 'supabase' ? 'สถานะปฏิบัติการแสดงเมื่อได้รับข้อมูลที่ยืนยันแล้ว' : 'หน้าจอนี้ใช้ข้อมูลจำลอง'}</span>
       </footer>
     </div>
   );

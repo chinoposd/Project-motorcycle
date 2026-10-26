@@ -35,8 +35,8 @@ const roleIcons: Record<UserRole, typeof GraduationCap> = {
 };
 
 export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: LoginPageProps) {
-  const [isRegisterOpen, setIsRegisterOpen] = useState(() => window.location.pathname === '/RegisterPage');
-  const [isRecoveryOpen, setIsRecoveryOpen] = useState(() => window.location.pathname === '/ForgotPassword');
+  const [isRegisterOpen, setIsRegisterOpen] = useState(() => typeof window !== 'undefined' && window.location.pathname === '/RegisterPage');
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(() => typeof window !== 'undefined' && window.location.pathname === '/ForgotPassword');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -94,6 +94,15 @@ export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: L
     setError('');
     setIsSubmitting(true);
     try {
+      if (selectedRole) {
+        const selectedDemo = getDemoCredentials(selectedRole);
+        if (email === selectedDemo.email && password === selectedDemo.password) {
+          const selectedUser = await authenticateUser(email, password);
+          if (selectedUser) onLogin({ ...selectedUser, authSource: 'demo' });
+          else setError('บัญชีทดลองนี้ไม่พร้อมใช้งาน');
+          return;
+        }
+      }
       const demoUser = await authenticateUser(email, password);
       if (demoUser) {
         onLogin({ ...demoUser, authSource: 'demo' });
