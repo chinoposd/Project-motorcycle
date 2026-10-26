@@ -17,7 +17,8 @@ import {
   getDemoCredentials,
   type DemoUser,
 } from '../auth/demoAuth';
-import { getSupabaseAuthErrorMessage, signInWithSupabase } from '../auth/supabaseAuth';
+import { getPasswordResetFeedback } from '../auth/passwordResetFeedback';
+import { getSupabaseAuthErrorMessage, sendSupabasePasswordReset, signInWithSupabase } from '../auth/supabaseAuth';
 import { supabaseConfig } from '../auth/supabaseClient';
 import type { UserRole } from '../types';
 
@@ -47,12 +48,14 @@ function writeAuthRoute(route: 'login' | 'register', mode: 'push' | 'replace', p
 
 export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
   const [isRegisterOpen, setIsRegisterOpen] = useState(() => window.location.pathname === '/RegisterPage');
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [passwordResetFeedback, setPasswordResetFeedback] = useState<ReturnType<typeof getPasswordResetFeedback> | null>(null);
 
   useEffect(() => {
     const currentState = window.history.state;
@@ -79,6 +82,8 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
 
   function openRegister() {
     setError('');
+    setIsForgotPassword(false);
+    setPasswordResetFeedback(null);
     if (window.location.pathname !== '/RegisterPage') {
       writeAuthRoute('register', 'push', `/RegisterPage${window.location.search}${window.location.hash}`);
     }
@@ -108,8 +113,39 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
     setError('');
   }
 
+  async function handlePasswordReset() {
+    setPasswordResetFeedback(null);
+    setIsSubmitting(true);
+    try {
+      const result = await sendSupabasePasswordReset(email);
+      setPasswordResetFeedback(getPasswordResetFeedback(result));
+    } catch {
+      setPasswordResetFeedback(getPasswordResetFeedback({ ok: false, reason: 'request-failed' }));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function openForgotPassword() {
+    setError('');
+    setPasswordResetFeedback(null);
+    setSelectedRole(null);
+    setIsForgotPassword(true);
+  }
+
+  function backToLogin() {
+    setIsForgotPassword(false);
+    setPasswordResetFeedback(null);
+    setError('');
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
+    if (isForgotPassword) {
+      await handlePasswordReset();
+      return;
+    }
     setError('');
     setIsSubmitting(true);
     try {
@@ -163,17 +199,17 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
       <main className="login-main">
         <section className="login-card" aria-labelledby="login-heading">
           <header className="login-heading">
-            <h1 id="login-heading">เข้าสู่ระบบ</h1>
-            <p>ลงชื่อเข้าใช้เพื่อใช้งานระบบรถจักรยานยนต์ไฟฟ้า</p>
+            <h1 id="login-heading">{isForgotPassword ? 'ลืมรหัสผ่าน?' : 'เข้าสู่ระบบ'}</h1>
+            <p>{isForgotPassword ? 'กรอกอีเมลที่ใช้สมัครสมาชิกเพื่อรับลิงก์ตั้งรหัสผ่านใหม่' : 'ลงชื่อเข้าใช้เพื่อใช้งานระบบรถจักรยานยนต์ไฟฟ้า'}</p>
           </header>
-          {notice && <p className="login-notice" role="status">{notice}</p>}
+          {!isForgotPassword && notice && <p className="login-notice" role="status">{notice}</p>}
 
           <form className="login-form" onSubmit={handleSubmit} noValidate>
             <label className="login-field" htmlFor="login-email">
               <span>อีเมล</span>
               <span className="login-input-wrap">
                 <input
-                  autoComplete="username"
+                  autoComplete={isForgotPassword ? 'email' : 'username'}
                   autoCapitalize="none"
                   autoCorrect="off"
                   id="login-email"
@@ -182,58 +218,81 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
                   value={email}
                   onChange={(event) => handleEmailChange(event.target.value)}
                   placeholder="name@wu.ac.th"
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? 'login-error' : undefined}
+                  aria-invalid={error || passwordResetFeedback?.message === 'กรุณากรอกอีเมลให้ถูกต้อง' ? true : undefined}
+                  aria-describedby={error ? 'login-error' : passwordResetFeedback ? 'password-reset-feedback' : undefined}
                   required
                 />
               </span>
             </label>
 
-            <label className="login-field" htmlFor="login-password">
-              <span>รหัสผ่าน</span>
-              <span className="login-input-wrap password-input-wrap">
-                <input
-                  autoComplete="current-password"
-                  id="login-password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(event) => handlePasswordChange(event.target.value)}
+            {!isForgotPassword && <>
+              <label className="login-field" htmlFor="login-password">
+                <span>รหัสผ่าน</span>
+                <span className="login-input-wrap password-input-wrap">
+                  <input
+                    autoComplete="current-password"
+                    id="login-password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => handlePasswordChange(event.target.value)}
                     placeholder="xxxxxxxx"
-                  maxLength={256}
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? 'login-error' : undefined}
-                  required
-                />
-                <button
-                  className="login-password-toggle"
-                  type="button"
-                  aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
-                  aria-pressed={showPassword}
-                  onClick={() => setShowPassword((visible) => !visible)}
-                >
-                  {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
-                </button>
-              </span>
-            </label>
+                    maxLength={256}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={error ? 'login-error' : undefined}
+                    required
+                  />
+                  <button
+                    className="login-password-toggle"
+                    type="button"
+                    aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((visible) => !visible)}
+                  >
+                    {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                  </button>
+                </span>
+              </label>
+            </>}
 
             {error ? <p className="login-error" id="login-error" role="alert">{error}</p> : null}
 
+            {isForgotPassword && passwordResetFeedback && (
+              <p
+                className={`login-reset-feedback ${passwordResetFeedback.tone}`}
+                id="password-reset-feedback"
+                role={passwordResetFeedback.tone === 'success' ? 'status' : 'alert'}
+              >
+                {passwordResetFeedback.message}
+              </p>
+            )}
+
+            {!isForgotPassword && (
+              <button className="login-forgot-button" type="button" onClick={openForgotPassword}>
+                ลืมรหัสผ่าน?
+              </button>
+            )}
+
             <button className="login-submit" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'กำลังตรวจสอบ…' : 'เข้าสู่ระบบ'}
+              {isSubmitting ? (isForgotPassword ? 'กำลังส่งคำขอ…' : 'กำลังตรวจสอบ…') : (isForgotPassword ? 'ส่งลิงก์รีเซ็ตรหัสผ่าน' : 'เข้าสู่ระบบ')}
             </button>
           </form>
 
-          <button
-            className="login-register-button"
-            type="button"
-            onClick={openRegister}
-          >
-            <UserPlus size={17} aria-hidden="true" />
-            <span>ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก</span>
-          </button>
+          {isForgotPassword ? (
+            <button className="login-register-button" type="button" disabled={isSubmitting} onClick={backToLogin}>
+              กลับไปเข้าสู่ระบบ
+            </button>
+          ) : <>
+            <button
+              className="login-register-button"
+              type="button"
+              onClick={openRegister}
+            >
+              <UserPlus size={17} aria-hidden="true" />
+              <span>ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก</span>
+            </button>
 
-          <section className="demo-accounts" aria-labelledby="demo-accounts-heading">
+            <section className="demo-accounts" aria-labelledby="demo-accounts-heading">
               <div className="login-divider" aria-hidden="true" />
               <h2 id="demo-accounts-heading">บัญชีทดลอง</h2>
               <div className="demo-shortcuts">
@@ -253,9 +312,10 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
                   );
                 })}
               </div>
-          </section>
+            </section>
 
-          <p className="login-disclosure"><LockKeyhole size={14} aria-hidden="true" /><span>บัญชีทดลองบันทึกเฉพาะเบราว์เซอร์นี้ · ไม่ใช่ระบบยืนยันตัวตนจริง</span></p>
+            <p className="login-disclosure"><LockKeyhole size={14} aria-hidden="true" /><span>บัญชีทดลองบันทึกเฉพาะเบราว์เซอร์นี้ · ไม่ใช่ระบบยืนยันตัวตนจริง</span></p>
+          </>}
         </section>
       </main>
       {isRegisterOpen && <RegisterPage onClose={closeRegister} />}

@@ -492,6 +492,11 @@ svg { flex: none; }
 .login-submit:disabled { cursor: wait; opacity: .72; }
 .login-register-button { width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; padding: 9px 12px; border: 0; color: var(--blue); background: transparent; font-size: 12px; font-weight: 650; }
 .login-register-button:hover { color: var(--blue-hover); text-decoration: underline; }
+.login-forgot-button { justify-self: end; margin: -7px 0 -4px; padding: 2px 0; border: 0; color: var(--blue); background: transparent; font-size: 11px; font-weight: 650; }
+.login-forgot-button:hover { color: var(--blue-hover); text-decoration: underline; }
+.login-reset-feedback { margin: 0; padding: 10px 12px; border: 1px solid transparent; border-radius: 7px; font-size: 11px; line-height: 1.55; }
+.login-reset-feedback.success { border-color: #b7e1d0; color: #14744e; background: #effaf5; }
+.login-reset-feedback.error { border-color: #f0c7c5; color: var(--red); background: #fff5f4; }
 .demo-accounts { margin-top: 21px; }
 .login-divider { height: 1px; margin-bottom: 16px; background: var(--line); }
 .demo-accounts h2 { margin: 0 0 11px; color: var(--ink); font-size: 13px; }

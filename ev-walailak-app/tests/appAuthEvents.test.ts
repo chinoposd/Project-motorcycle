@@ -33,6 +33,26 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
   const cleanups: (() => void)[] = [];
   const requests: { resolve: (value: SupabaseAuthResult) => void; reject: (error: Error) => void }[] = [];
   let listener: (event: string, session: { user: { id: string } } | null) => void;
+  const location = { href: 'http://localhost/LoginPage', pathname: '/LoginPage', search: '', hash: '' };
+  const updateLocation = (url?: string) => {
+    if (!url) return;
+    const nextUrl = new URL(url, location.href);
+    location.href = nextUrl.href;
+    location.pathname = nextUrl.pathname;
+    location.search = nextUrl.search;
+    location.hash = nextUrl.hash;
+  };
+  const history = {
+    state: null as unknown,
+    replaceState(state: unknown, _title: string, url?: string) {
+      this.state = state;
+      updateLocation(url);
+    },
+    pushState(state: unknown, _title: string, url?: string) {
+      this.state = state;
+      updateLocation(url);
+    },
+  };
   const modules: Record<string, unknown> = {
     './auth/accountAccess': accountAccess,
     './auth/authRequestEpoch': authRequestEpoch,
@@ -41,6 +61,11 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
     './auth/managerProfile': managerProfile,
     './auth/userProfile': userProfile,
     './auth/profilePhoto': profilePhoto,
+    './auth/supabaseProfile': {
+      createSupabaseProfilePhotoUrl: async () => null,
+      saveSupabaseProfilePhoto: async () => ({ ok: false, message: 'not called in auth event tests' }),
+      updateSupabaseProfile: async () => ({ ok: false, message: 'not called in auth event tests' }),
+    },
     './data/mockData': { initialAlerts: [] },
     './auth/supabaseClient': {
       supabaseConfig: { mode: 'configured' },
@@ -55,6 +80,8 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
       signOutSupabase: async () => undefined,
     },
     react: {
+      lazy: (loader: () => unknown) => String(loader).split('./pages/')[1]?.split(/["')]/)[0] ?? 'LazyPage',
+      Suspense: 'Suspense',
       useState(initial: unknown) {
         const index = cursor++;
         if (!mounted) slots[index] = typeof initial === 'function' ? initial() : initial;
@@ -71,8 +98,8 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
       useEffect: (effect: () => void | (() => void)) => { if (!mounted) effects.push(effect); },
     },
     'react/jsx-runtime': {
-      jsx: (type: string, props: Record<string, unknown>) => ({ type, props }),
-      jsxs: (type: string, props: Record<string, unknown>) => ({ type, props }),
+      jsx: (type: string, props: Record<string, unknown>) => type === 'Suspense' ? props.children : ({ type, props }),
+      jsxs: (type: string, props: Record<string, unknown>) => type === 'Suspense' ? props.children : ({ type, props }),
     },
   };
   const exports: { default?: () => { type: string; props: Record<string, any> } } = {};
@@ -82,7 +109,9 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
   await runInNewContext(`(async () => { ${transformedModule!.code} })()`, {
     __vite_ssr_exports__: exports,
     __vite_ssr_exportName__: (name: string, getter: () => unknown) => Object.defineProperty(exports, name, { get: getter }),
-    queueMicrotask, async __vite_ssr_import__(id: string) {
+    queueMicrotask,
+    window: { location, history, addEventListener() {}, removeEventListener() {}, setTimeout, clearTimeout },
+    async __vite_ssr_import__(id: string) {
     if (id in modules) return modules[id];
     if (id.startsWith('./pages/') || id.startsWith('./components/')) return { default: id.split('/').at(-1) };
     throw new Error(`Uninjected App dependency: ${id}`);
