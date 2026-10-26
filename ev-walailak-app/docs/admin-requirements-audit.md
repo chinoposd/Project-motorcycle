@@ -2,7 +2,7 @@
 
 Source: `EV_Motorcycle_Handoff_2026-10-14_C144_RECONCILED.md` and `EV_Motorcycle_Requirements_FULL_2026-10-14_C144_RECONCILED.txt` supplied by the project owner. The downloaded text files have the same substantive content as the copies in this repository; the DOCX copy is identical. Later confirmed amendments in the Handoff take precedence over older role wording.
 
-This audit describes the `Adminx2` branch. The new migration has **not** been applied to the hosted Supabase project. Without it, the page shows all sections and an unavailable banner, with write controls disabled. The existing pending-account RPC can still show its account list independently.
+This audit describes the `Adminx2` branch. The Admin portal migration was applied to hosted Supabase project `rmgycwhlzhyenugacbke` on 26 October 2026 as version `20261026044850`. In environments without that migration, the page shows all sections and an unavailable banner, with write controls disabled. The existing pending-account RPC can still show its account list independently.
 
 | Requirement | Branch status | Remaining work |
 | --- | --- | --- |
