@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { AlertCircle, BadgeCheck, Bike, Check, Circle, Eye, EyeOff, LockKeyhole, Mail, Phone, ShieldCheck, UserRound, UserRoundPlus, X } from 'lucide-react';
-import { getSupabaseAuthErrorMessage, signUpWithSupabase } from '../auth/supabaseAuth';
+import { BadgeCheck, Bike, Check, Circle, Eye, EyeOff, LockKeyhole, Mail, Phone, ShieldCheck, UserRound, UserRoundPlus, X } from 'lucide-react';
+import { registerDemoUser } from '../auth/demoAuth';
+import { getSupabaseAuthErrorMessage, signUpWithSupabase, type AppUser } from '../auth/supabaseAuth';
 import { supabaseConfig } from '../auth/supabaseClient';
 
 type ApplicantType = '' | 'Student' | 'Employee';
@@ -9,10 +10,10 @@ interface RegistrationForm extends Record<Exclude<FormField, 'applicantType'>, s
   applicantType: ApplicantType;
 }
 type RegistrationErrors = Partial<Record<FormField, string>>;
-type RegistrationFeedback = { type: 'success' | 'confirmation' | 'error'; title: string; message: string };
 
 interface RegisterPageProps {
   onClose: () => void;
+  onLogin: (user: AppUser) => void;
 }
 
 const initialForm: RegistrationForm = {
@@ -37,9 +38,7 @@ function validateForm(form: RegistrationForm): RegistrationErrors {
   const errors: RegistrationErrors = {};
   if (!form.firstName.trim()) errors.firstName = 'กรุณากรอกชื่อ';
   if (!form.lastName.trim()) errors.lastName = 'กรุณากรอกนามสกุล';
-  if (`${form.firstName.trim()} ${form.lastName.trim()}`.length > 80) errors.lastName = 'ชื่อและนามสกุลรวมกันต้องไม่เกิน 80 ตัวอักษร';
   if (!form.phone.trim()) errors.phone = 'กรุณากรอกเบอร์โทรศัพท์';
-  else if (form.phone.trim().length > 32) errors.phone = 'เบอร์โทรศัพท์ต้องไม่เกิน 32 ตัวอักษร';
   if (!form.email.trim()) errors.email = 'กรุณากรอกอีเมล';
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = 'กรุณาตรวจสอบรูปแบบอีเมล';
   if (!form.applicantType) errors.applicantType = 'กรุณาเลือกประเภทผู้สมัคร';
@@ -53,10 +52,11 @@ function FormFieldError({ id, message }: { id: string; message?: string }) {
   return message ? <span className="register-field-error" id={`${id}-error`} role="alert">{message}</span> : null;
 }
 
-export default function RegisterPage({ onClose }: RegisterPageProps) {
+export default function RegisterPage({ onClose, onLogin }: RegisterPageProps) {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<RegistrationErrors>({});
-  const [feedback, setFeedback] = useState<RegistrationFeedback | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [serverMessage, setServerMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -105,7 +105,8 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
     const { name, value } = event.currentTarget;
     const nextForm = { ...form, [name]: value } as RegistrationForm;
     setForm(nextForm);
-    setFeedback(null);
+    setHasSubmitted(false);
+    setServerMessage('');
     if (Object.keys(errors).length > 0) setErrors(validateForm(nextForm));
   }
 
@@ -113,55 +114,52 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
     event.preventDefault();
     const nextErrors = validateForm(form);
     setErrors(nextErrors);
-    setFeedback(null);
-    if (Object.keys(nextErrors).length > 0) {
-      const firstInvalidField = Object.keys(nextErrors)[0] as FormField;
-      const fieldIds: Record<FormField, string> = {
-        firstName: 'register-first-name',
-        lastName: 'register-last-name',
-        phone: 'register-phone',
-        email: 'register-email',
-        applicantType: 'register-applicant-type',
-        password: 'register-password',
-        confirmPassword: 'register-confirm-password',
-      };
-      window.requestAnimationFrame(() => {
-        const field = dialogRef.current?.querySelector<HTMLElement>(`#${fieldIds[firstInvalidField]}`);
-        field?.focus({ preventScroll: true });
-        field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
+    setHasSubmitted(false);
+    setServerMessage('');
+    if (Object.keys(nextErrors).length > 0 || !form.applicantType) {
+      setHasSubmitted(true);
       return;
     }
-
     setIsSubmitting(true);
+    const name = `${form.firstName.trim()} ${form.lastName.trim()}`;
     try {
-      const result = await signUpWithSupabase({
-        name: `${form.firstName.trim()} ${form.lastName.trim()}`,
-        email: form.email.trim(),
-        phone: form.phone.trim(),
-        password: form.password,
-        requestedRole: form.applicantType as 'Student' | 'Employee',
-      });
-
-      if (result.error) {
-        setFeedback({ type: 'error', title: 'สมัครสมาชิกไม่สำเร็จ', message: getSupabaseAuthErrorMessage(result.error) });
-      } else if (result.confirmationRequired) {
-        setFeedback({
-          type: 'confirmation',
-          title: 'สร้างบัญชีแล้ว · กรุณายืนยันอีเมล',
-          message: `ส่งลิงก์ยืนยันไปที่ ${form.email.trim()} แล้ว ตรวจกล่องจดหมายและ Spam จากนั้นกลับมาเข้าสู่ระบบ บัญชีจะรอผู้ดูแลอนุมัติ`,
+      if (supabaseConfig.mode === 'configured') {
+        const result = await signUpWithSupabase({
+          name,
+          email: form.email,
+          phone: form.phone.trim(),
+          password: form.password,
+          requestedRole: form.applicantType,
         });
-      } else if (result.user) {
-        setFeedback({
-          type: 'success',
-          title: 'สมัครสมาชิกสำเร็จ',
-          message: 'บัญชีเข้าสู่ระบบแล้วและอยู่ระหว่างรอผู้ดูแลอนุมัติ',
-        });
-      } else {
-        setFeedback({ type: 'error', title: 'สมัครสมาชิกไม่สำเร็จ', message: getSupabaseAuthErrorMessage('request-failed') });
+        if (result.error) {
+          setServerMessage(getSupabaseAuthErrorMessage(result.error));
+          return;
+        }
+        if (result.confirmationRequired) {
+          setHasSubmitted(true);
+          setServerMessage('ส่งคำสมัครแล้ว · ตรวจอีเมลเพื่อยืนยันบัญชี จากนั้นบัญชีจะรอผู้ดูแลอนุมัติ');
+          return;
+        }
+        if (result.user) {
+          onLogin(result.user);
+          onClose();
+          return;
+        }
+        setServerMessage('สร้างบัญชีไม่สำเร็จ · กรุณาลองอีกครั้ง');
+        return;
       }
+
+      const result = await registerDemoUser(name, form.email, form.password, undefined, form.applicantType);
+      if (result.error || !result.user) {
+        setServerMessage(result.error === 'email-in-use' ? 'อีเมลนี้มีบัญชีตัวอย่างในเบราว์เซอร์แล้ว'
+          : result.error === 'crypto-unavailable' ? 'เบราว์เซอร์นี้ไม่รองรับการสร้างบัญชีตัวอย่าง'
+            : 'บันทึกบัญชีตัวอย่างไม่สำเร็จ · ตรวจสอบพื้นที่จัดเก็บในเบราว์เซอร์');
+        return;
+      }
+      onLogin({ ...result.user, authSource: 'demo' });
+      onClose();
     } catch {
-      setFeedback({ type: 'error', title: 'สมัครสมาชิกไม่สำเร็จ', message: getSupabaseAuthErrorMessage('request-failed') });
+      setServerMessage('ดำเนินการไม่สำเร็จ · ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง');
     } finally {
       setIsSubmitting(false);
     }
@@ -187,36 +185,47 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
             <h1 id="register-title">สมัครสมาชิก</h1>
             <p className="register-description" id="register-description">กรอกข้อมูลเพื่อสมัครใช้งานระบบรถจักรยานยนต์ไฟฟ้า</p>
 
-            <form aria-busy={isSubmitting} className="register-form" noValidate onSubmit={handleSubmit}>
+            {hasSubmitted && Object.keys(errors).length === 0 && (
+              <div className="register-feedback register-feedback-success" role="status">
+                <BadgeCheck size={19} aria-hidden="true" />
+                <div>
+                  <strong>{supabaseConfig.mode === 'configured' ? 'ส่งคำสมัครแล้ว' : 'สร้างบัญชีตัวอย่างแล้ว'}</strong>
+                  <span>{serverMessage || (supabaseConfig.mode === 'configured' ? 'ตรวจอีเมลเพื่อยืนยันบัญชี บัญชีจะรอ Admin อนุมัติ' : 'บันทึกเฉพาะในเบราว์เซอร์นี้และไม่ใช่บัญชีจริง')}</span>
+                </div>
+              </div>
+            )}
+            {serverMessage && !(hasSubmitted && Object.keys(errors).length === 0) && <p className="register-field-error" role="alert">{serverMessage}</p>}
+
+            <form className="register-form" noValidate onSubmit={handleSubmit}>
               <div className="register-field-grid">
                 <label className="register-field" htmlFor="register-first-name">
                   <span>ชื่อ <b>*</b></span>
-                  <span className="register-input-wrap"><UserRound size={17} aria-hidden="true" /><input autoComplete="given-name" disabled={isSubmitting} id="register-first-name" maxLength={80} name="firstName" onChange={handleChange} placeholder="ชื่อ" required value={form.firstName} aria-invalid={Boolean(errors.firstName)} aria-describedby={errors.firstName ? 'register-first-name-error' : undefined} /></span>
+                  <span className="register-input-wrap"><UserRound size={17} aria-hidden="true" /><input autoComplete="given-name" id="register-first-name" name="firstName" onChange={handleChange} placeholder="ชื่อ" required value={form.firstName} aria-invalid={Boolean(errors.firstName)} aria-describedby={errors.firstName ? 'register-first-name-error' : undefined} /></span>
                   <FormFieldError id="register-first-name" message={errors.firstName} />
                 </label>
                 <label className="register-field" htmlFor="register-last-name">
                   <span>นามสกุล <b>*</b></span>
-                  <span className="register-input-wrap"><UserRound size={17} aria-hidden="true" /><input autoComplete="family-name" disabled={isSubmitting} id="register-last-name" maxLength={80} name="lastName" onChange={handleChange} placeholder="นามสกุล" required value={form.lastName} aria-invalid={Boolean(errors.lastName)} aria-describedby={errors.lastName ? 'register-last-name-error' : undefined} /></span>
+                  <span className="register-input-wrap"><UserRound size={17} aria-hidden="true" /><input autoComplete="family-name" id="register-last-name" name="lastName" onChange={handleChange} placeholder="นามสกุล" required value={form.lastName} aria-invalid={Boolean(errors.lastName)} aria-describedby={errors.lastName ? 'register-last-name-error' : undefined} /></span>
                   <FormFieldError id="register-last-name" message={errors.lastName} />
                 </label>
               </div>
 
               <label className="register-field" htmlFor="register-email">
                 <span>อีเมล <b>*</b></span>
-                <span className="register-input-wrap"><Mail size={17} aria-hidden="true" /><input autoComplete="email" disabled={isSubmitting} id="register-email" maxLength={320} name="email" onChange={handleChange} placeholder="name@example.com" required type="email" value={form.email} aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? 'register-email-error' : undefined} /></span>
+                <span className="register-input-wrap"><Mail size={17} aria-hidden="true" /><input autoComplete="email" id="register-email" name="email" onChange={handleChange} placeholder="name@example.com" required type="email" value={form.email} aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? 'register-email-error' : undefined} /></span>
                 <FormFieldError id="register-email" message={errors.email} />
               </label>
 
               <label className="register-field" htmlFor="register-phone">
                 <span>เบอร์โทรศัพท์ <b>*</b></span>
-                <span className="register-input-wrap"><Phone size={17} aria-hidden="true" /><input autoComplete="tel" disabled={isSubmitting} id="register-phone" maxLength={32} name="phone" onChange={handleChange} placeholder="0xx-xxx-xxxx" required type="tel" value={form.phone} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? 'register-phone-error' : 'register-phone-hint'} /></span>
+                <span className="register-input-wrap"><Phone size={17} aria-hidden="true" /><input autoComplete="tel" id="register-phone" name="phone" onChange={handleChange} placeholder="0xx-xxx-xxxx" required type="tel" value={form.phone} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? 'register-phone-error' : 'register-phone-hint'} /></span>
                 <small id="register-phone-hint">ใช้สำหรับติดต่อเกี่ยวกับบัญชีและการใช้งาน</small>
                 <FormFieldError id="register-phone" message={errors.phone} />
               </label>
 
               <label className="register-field" htmlFor="register-applicant-type">
                 <span>ประเภทผู้สมัคร <b>*</b></span>
-                <select disabled={isSubmitting} id="register-applicant-type" name="applicantType" onChange={handleChange} required value={form.applicantType} aria-invalid={Boolean(errors.applicantType)} aria-describedby={errors.applicantType ? 'register-applicant-type-error' : undefined}>
+                <select id="register-applicant-type" name="applicantType" onChange={handleChange} required value={form.applicantType} aria-invalid={Boolean(errors.applicantType)} aria-describedby={errors.applicantType ? 'register-applicant-type-error' : undefined}>
                   <option value="" disabled>เลือกประเภทผู้สมัคร</option>
                   <option value="Student">นักศึกษา · Student</option>
                   <option value="Employee">บุคลากร · Employee</option>
@@ -227,14 +236,14 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
               <div className="register-field-grid">
                 <label className="register-field" htmlFor="register-password">
                   <span>รหัสผ่าน <b>*</b></span>
-                  <span className="register-input-wrap"><LockKeyhole size={17} aria-hidden="true" /><input autoComplete="new-password" disabled={isSubmitting} id="register-password" maxLength={256} name="password" onChange={handleChange} placeholder="สร้างรหัสผ่าน" required type={showPassword ? 'text' : 'password'} value={form.password} aria-invalid={Boolean(errors.password)} aria-describedby="register-password-rules" />
-                    <button aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} className="register-password-toggle" disabled={isSubmitting} onClick={() => setShowPassword((shown) => !shown)} type="button">{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+                  <span className="register-input-wrap"><LockKeyhole size={17} aria-hidden="true" /><input autoComplete="new-password" id="register-password" name="password" onChange={handleChange} placeholder="สร้างรหัสผ่าน" required type={showPassword ? 'text' : 'password'} value={form.password} aria-invalid={Boolean(errors.password)} aria-describedby="register-password-rules" />
+                    <button aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} className="register-password-toggle" onClick={() => setShowPassword((shown) => !shown)} type="button">{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
                   </span>
                 </label>
                 <label className="register-field" htmlFor="register-confirm-password">
                   <span>ยืนยันรหัสผ่าน <b>*</b></span>
-                  <span className="register-input-wrap"><LockKeyhole size={17} aria-hidden="true" /><input autoComplete="new-password" disabled={isSubmitting} id="register-confirm-password" maxLength={256} name="confirmPassword" onChange={handleChange} placeholder="กรอกรหัสผ่านอีกครั้ง" required type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} aria-invalid={Boolean(errors.confirmPassword || confirmMismatch)} aria-describedby={errors.confirmPassword ? 'register-confirm-password-error' : undefined} />
-                    <button aria-label={showConfirmPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} className="register-password-toggle" disabled={isSubmitting} onClick={() => setShowConfirmPassword((shown) => !shown)} type="button">{showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
+                  <span className="register-input-wrap"><LockKeyhole size={17} aria-hidden="true" /><input autoComplete="new-password" id="register-confirm-password" name="confirmPassword" onChange={handleChange} placeholder="กรอกรหัสผ่านอีกครั้ง" required type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} aria-invalid={Boolean(errors.confirmPassword || confirmMismatch)} aria-describedby={errors.confirmPassword ? 'register-confirm-password-error' : undefined} />
+                    <button aria-label={showConfirmPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} className="register-password-toggle" onClick={() => setShowConfirmPassword((shown) => !shown)} type="button">{showConfirmPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button>
                   </span>
                   <FormFieldError id="register-confirm-password" message={errors.confirmPassword} />
                 </label>
@@ -249,21 +258,11 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
               <FormFieldError id="register-password" message={errors.password} />
               {confirmMismatch && !errors.confirmPassword && <span className="register-field-error" role="status">รหัสผ่านทั้งสองช่องไม่ตรงกัน</span>}
 
-              {feedback && (
-                <div className={`register-feedback register-feedback-${feedback.type}`} role={feedback.type === 'error' ? 'alert' : 'status'}>
-                  {feedback.type === 'error' ? <AlertCircle size={19} aria-hidden="true" /> : <BadgeCheck size={19} aria-hidden="true" />}
-                  <div>
-                    <strong>{feedback.title}</strong>
-                    <span>{feedback.message}</span>
-                  </div>
-                </div>
-              )}
-
               <div className="register-actions">
                 <button className="button button-outline register-cancel" onClick={onClose} type="button">ยกเลิก</button>
-                <button className="button button-primary register-submit" disabled={isSubmitting} type="submit">{isSubmitting ? 'กำลังสร้างบัญชี…' : 'สมัครสมาชิก'}</button>
+                <button className="button button-primary register-submit" disabled={isSubmitting} type="submit">{isSubmitting ? 'กำลังส่งข้อมูล…' : 'สมัครสมาชิก'}</button>
               </div>
-              <p className="register-privacy-note"><LockKeyhole size={13} aria-hidden="true" />{supabaseConfig.mode === 'configured' ? 'ข้อมูลจะถูกส่งไปยัง Supabase เพื่อสร้างบัญชีและโปรไฟล์ที่รออนุมัติ' : 'ต้องตั้งค่า Supabase ก่อน จึงจะส่งข้อมูลเพื่อสร้างบัญชีได้'}</p>
+              <p className="register-privacy-note"><LockKeyhole size={13} aria-hidden="true" />{supabaseConfig.mode === 'configured' ? 'ข้อมูลจะส่งไปยัง Supabase Auth เพื่อสร้างบัญชีจริง' : 'บัญชีทดลองบันทึกเฉพาะในเบราว์เซอร์นี้ · ไม่ใช่บัญชีจริง'}</p>
             </form>
           </div>
         </div>
@@ -286,7 +285,7 @@ export default function RegisterPage({ onClose }: RegisterPageProps) {
             </div>
             <div className="register-info-note">
               <span className="register-info-icon"><Mail size={17} aria-hidden="true" /></span>
-              <p>หากระบบส่งอีเมลยืนยัน โปรดยืนยันก่อนเข้าสู่ระบบ</p>
+              <p>การยืนยันอีเมลจะเปิดใช้เมื่อเชื่อมต่อระบบบัญชีจริง</p>
             </div>
           </div>
         </aside>

@@ -11,12 +11,13 @@ import {
   UsersRound,
 } from 'lucide-react';
 import RegisterPage from './RegisterPage';
+import PasswordRecoveryPage from './PasswordRecoveryPage';
 import {
   authenticateUser,
   DEMO_ROLE_SHORTCUTS,
   getDemoCredentials,
-  type DemoUser,
 } from '../auth/demoAuth';
+<<<<<<< HEAD
 import {
   getPasswordResetFeedback,
   getVisiblePasswordResetFeedback,
@@ -24,11 +25,15 @@ import {
 } from '../auth/passwordResetFeedback';
 import { normalizeAuthEmail } from '../auth/emailAddress';
 import { getSupabaseAuthErrorMessage, sendSupabasePasswordReset, signInWithSupabase } from '../auth/supabaseAuth';
+=======
+import { signInWithSupabase, type AppUser } from '../auth/supabaseAuth';
+>>>>>>> origin/develop
 import { supabaseConfig } from '../auth/supabaseClient';
 import type { UserRole } from '../types';
 
 interface LoginPageProps {
-  onLogin: (user: DemoUser) => void;
+  onLogin: (user: AppUser) => void;
+  onPasswordUpdated: () => void;
   notice?: string;
 }
 
@@ -39,6 +44,7 @@ const roleIcons: Record<UserRole, typeof GraduationCap> = {
   Admin: Settings,
 };
 
+<<<<<<< HEAD
 const AUTH_ROUTE_STATE_KEY = '__evWalailakAuthRoute';
 
 function writeAuthRoute(route: 'login' | 'register', mode: 'push' | 'replace', path: string) {
@@ -54,6 +60,11 @@ function writeAuthRoute(route: 'login' | 'register', mode: 'push' | 'replace', p
 export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
   const [isRegisterOpen, setIsRegisterOpen] = useState(() => window.location.pathname === '/RegisterPage');
   const [isForgotPassword, setIsForgotPassword] = useState(false);
+=======
+export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: LoginPageProps) {
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(() => window.location.pathname === '/ForgotPassword');
+>>>>>>> origin/develop
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -63,51 +74,33 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
   const [passwordResetFeedback, setPasswordResetFeedback] = useState<EmailBoundPasswordResetFeedback | null>(null);
 
   useEffect(() => {
-    const currentState = window.history.state;
-    const authRoute = currentState && typeof currentState === 'object'
-      ? (currentState as Record<string, unknown>)[AUTH_ROUTE_STATE_KEY]
-      : undefined;
-
-    if (window.location.pathname === '/RegisterPage' && authRoute !== 'register') {
-      writeAuthRoute('login', 'replace', `/LoginPage${window.location.search}${window.location.hash}`);
-      writeAuthRoute('register', 'push', `/RegisterPage${window.location.search}${window.location.hash}`);
-    } else if (window.location.pathname !== '/LoginPage' && window.location.pathname !== '/RegisterPage') {
-      writeAuthRoute('login', 'replace', `/LoginPage${window.location.search}${window.location.hash}`);
-    } else if (window.location.pathname === '/LoginPage' && authRoute !== 'login') {
-      writeAuthRoute('login', 'replace', `${window.location.pathname}${window.location.search}${window.location.hash}`);
+    function syncRecoveryRoute() {
+      setIsRecoveryOpen(window.location.pathname === '/ForgotPassword');
     }
-
-    function syncRegisterRoute() {
-      setIsRegisterOpen(window.location.pathname === '/RegisterPage');
-    }
-
-    window.addEventListener('popstate', syncRegisterRoute);
-    return () => window.removeEventListener('popstate', syncRegisterRoute);
+    window.addEventListener('popstate', syncRecoveryRoute);
+    return () => window.removeEventListener('popstate', syncRecoveryRoute);
   }, []);
 
-  function openRegister() {
+  function openRecoveryPage() {
+    window.history.pushState({ authPage: 'forgot-password' }, '', '/ForgotPassword');
+    setIsRecoveryOpen(true);
     setError('');
+<<<<<<< HEAD
     setIsForgotPassword(false);
     setPasswordResetFeedback(null);
     if (window.location.pathname !== '/RegisterPage') {
       writeAuthRoute('register', 'push', `/RegisterPage${window.location.search}${window.location.hash}`);
     }
     setIsRegisterOpen(true);
+=======
+>>>>>>> origin/develop
   }
 
-  function closeRegister() {
-    const currentState = window.history.state;
-    const authRoute = currentState && typeof currentState === 'object'
-      ? (currentState as Record<string, unknown>)[AUTH_ROUTE_STATE_KEY]
-      : undefined;
-
-    if (window.location.pathname === '/RegisterPage' && authRoute === 'register') {
-      window.history.back();
-      return;
+  function returnToLoginPage() {
+    if (window.location.pathname === '/ForgotPassword') {
+      window.history.replaceState({}, '', `/LoginPage${window.location.search}${window.location.hash}`);
     }
-
-    writeAuthRoute('login', 'replace', `/LoginPage${window.location.search}${window.location.hash}`);
-    setIsRegisterOpen(false);
+    setIsRecoveryOpen(false);
   }
 
   function handleShortcut(role: UserRole) {
@@ -158,23 +151,25 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
     setError('');
     setIsSubmitting(true);
     try {
-      if (supabaseConfig.mode === 'configured') {
-        const result = await signInWithSupabase(email, password);
-        if (result.user) return;
-        if (result.error && result.error !== 'invalid-credentials') {
-          setError(getSupabaseAuthErrorMessage(result.error));
-          return;
-        }
-      }
-
-      const user = await authenticateUser(email, password);
-      if (!user) {
-        setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+      const demoUser = await authenticateUser(email, password);
+      if (demoUser) {
+        onLogin({ ...demoUser, authSource: 'demo' });
         return;
       }
-      onLogin(user);
+      if (supabaseConfig.mode === 'configured') {
+        const result = await signInWithSupabase(email, password);
+        if (result.user) {
+          onLogin(result.user);
+          return;
+        }
+        setError(result.error === 'email-unverified' ? 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'
+          : result.error === 'request-failed' ? 'เชื่อมต่อระบบบัญชีไม่สำเร็จ · ตรวจเครือข่ายแล้วลองใหม่'
+            : 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+        return;
+      }
+      setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
     } catch {
-      setError(getSupabaseAuthErrorMessage('request-failed'));
+      setError('เข้าสู่ระบบไม่สำเร็จ · ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง');
     } finally {
       setIsSubmitting(false);
     }
@@ -193,7 +188,13 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
     setError('');
   }
 
+<<<<<<< HEAD
   const visiblePasswordResetFeedback = getVisiblePasswordResetFeedback(passwordResetFeedback, email);
+=======
+  if (isRecoveryOpen) {
+    return <PasswordRecoveryPage mode="request" onClose={returnToLoginPage} onPasswordUpdated={onPasswordUpdated} />;
+  }
+>>>>>>> origin/develop
 
   return (
     <div className="login-screen">
@@ -268,6 +269,8 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
               </label>
             </>}
 
+            <button className="login-forgot-button" type="button" onClick={openRecoveryPage}>ลืมรหัสผ่าน?</button>
+
             {error ? <p className="login-error" id="login-error" role="alert">{error}</p> : null}
 
             {isForgotPassword && visiblePasswordResetFeedback && (
@@ -291,6 +294,7 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
             </button>
           </form>
 
+<<<<<<< HEAD
           {isForgotPassword ? (
             <button className="login-register-button" type="button" disabled={isSubmitting} onClick={backToLogin}>
               กลับไปเข้าสู่ระบบ
@@ -304,6 +308,19 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
               <UserPlus size={17} aria-hidden="true" />
               <span>ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก</span>
             </button>
+=======
+          <button
+            className="login-register-button"
+            type="button"
+            onClick={() => {
+              setIsRegisterOpen(true);
+              setError('');
+            }}
+          >
+            <UserPlus size={17} aria-hidden="true" />
+            <span>ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก</span>
+          </button>
+>>>>>>> origin/develop
 
             <section className="demo-accounts" aria-labelledby="demo-accounts-heading">
               <div className="login-divider" aria-hidden="true" />
@@ -331,7 +348,7 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
           </>}
         </section>
       </main>
-      {isRegisterOpen && <RegisterPage onClose={closeRegister} />}
+      {isRegisterOpen && <RegisterPage onClose={() => setIsRegisterOpen(false)} onLogin={onLogin} />}
     </div>
   );
 }

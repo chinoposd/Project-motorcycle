@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Bike, ChevronRight, CircleHelp, LayoutDashboard, LockKeyhole, LogOut, Settings, UserRound, UsersRound } from 'lucide-react';
 import { getLandingPage, isPageAllowed, type DemoUser } from '../auth/demoAuth';
-import type { PageId } from '../types';
+import type { PageId, UtilityView } from '../types';
 
 const navItems: { id: PageId; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'home', label: 'ภาพรวมผู้ใช้', icon: LayoutDashboard },
@@ -18,6 +18,7 @@ interface AppShellProps {
   profilePhoto: string | null;
   onNavigate: (page: PageId) => void;
   onLogout: () => void;
+  onOpenUtility: (view: UtilityView) => void;
   user: DemoUser;
   children: ReactNode;
 }
@@ -29,12 +30,12 @@ const roleLabels = {
   Admin: 'ผู้ดูแลระบบ',
 } as const;
 
-export default function AppShell({ authSource, page, breadcrumbLabel, breadcrumbParent, profilePhoto, onNavigate, onLogout, user, children }: AppShellProps) {
+export default function AppShell({ authSource, page, breadcrumbLabel, breadcrumbParent, profilePhoto, onNavigate, onLogout, onOpenUtility, user, children }: AppShellProps) {
   const identity = { initial: user.name.slice(0, 1), label: `${user.name} · ${roleLabels[user.role]}` };
   const profilePage: PageId = user.role === 'Manager' ? 'manager-profile' : 'profile-settings';
   const visibleNavItems = navItems.filter(({ id }) => isPageAllowed(user.role, id));
   const pageLabels: Record<PageId, string> = {
-    home: 'ภาพรวม',
+    home: 'ภาพรวมผู้ใช้',
     ride: 'ระหว่างใช้งาน',
     manager: 'Manager',
     'manager-profile': 'โปรไฟล์ผู้จัดการ',
@@ -47,9 +48,10 @@ export default function AppShell({ authSource, page, breadcrumbLabel, breadcrumb
     'profile-settings': getLandingPage(user.role),
   };
   const parent = parentPage[page];
-  const parentLabel = breadcrumbParent?.label ?? (parent && parent !== page ? pageLabels[parent] : undefined);
-  const navigateToParent = breadcrumbParent?.onNavigate ?? (parent && parent !== page ? () => onNavigate(parent) : undefined);
-  const currentLabel = breadcrumbLabel ?? pageLabels[page];
+  const breadcrumbItems = [
+    ...(parent && parent !== page ? [{ page: parent, label: pageLabels[parent] }] : []),
+    { page: undefined, label: breadcrumbLabel ?? pageLabels[page] },
+  ];
 
   return (
     <div className="app-shell">
@@ -76,7 +78,7 @@ export default function AppShell({ authSource, page, breadcrumbLabel, breadcrumb
           </nav>
 
           <div className="header-actions">
-            <button className="icon-button help-button" type="button" aria-label="คู่มือการใช้งาน" title="คู่มือการใช้งาน">
+            <button className="icon-button help-button" type="button" aria-label="ช่วยเหลือและคู่มือการใช้งาน" title="ช่วยเหลือและคู่มือการใช้งาน" onClick={() => onOpenUtility('help')}>
               <CircleHelp size={19} strokeWidth={1.9} />
             </button>
             <button className={`profile-chip profile-chip-button${page === profilePage ? ' active' : ''}`} type="button" aria-label={`เปิดโปรไฟล์ ${identity.label} (${user.email})`} aria-current={page === profilePage ? 'page' : undefined} title="เปิดตั้งค่าโปรไฟล์" onClick={() => onNavigate(profilePage)}>
@@ -94,13 +96,19 @@ export default function AppShell({ authSource, page, breadcrumbLabel, breadcrumb
       <main className="main-content">
         <nav className="breadcrumbs" aria-label="เส้นทางนำทาง">
           <ol>
-            {parentLabel && navigateToParent && (
-              <li>
-                <button className="breadcrumb-link" type="button" onClick={navigateToParent}>{parentLabel}</button>
-                <ChevronRight className="breadcrumb-separator" size={13} aria-hidden="true" />
+            {breadcrumbParent ? <>
+              <li><button className="breadcrumb-link" type="button" onClick={breadcrumbParent.onNavigate}>{breadcrumbParent.label}</button></li>
+              <li><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true" /><span className="breadcrumb-current" aria-current="page">{breadcrumbLabel ?? pageLabels[page]}</span></li>
+            </> : breadcrumbItems.map((item, index) => (
+              <li key={`${item.page ?? 'current'}-${item.label}`}>
+                {index > 0 && <ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true" />}
+                {item.page ? (
+                  <button className="breadcrumb-link" type="button" onClick={() => onNavigate(item.page!)}>{item.label}</button>
+                ) : (
+                  <span className="breadcrumb-current" aria-current="page">{item.label}</span>
+                )}
               </li>
-            )}
-            <li><span className="breadcrumb-current" aria-current="page">{currentLabel}</span></li>
+            ))}
           </ol>
         </nav>
         <div className="prototype-note"><LockKeyhole size={14} aria-hidden="true" /><span>{authSource === 'supabase' ? 'ข้อมูลรถและ Session เป็นข้อมูลตัวอย่าง · บัญชีเชื่อมต่อ Supabase' : 'ข้อมูลตัวอย่าง · ยังไม่เชื่อมต่อรถหรือบัญชีจริง'}</span></div>

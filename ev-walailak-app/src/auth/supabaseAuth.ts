@@ -25,6 +25,7 @@ export type SupabaseAuthError =
   | 'email-rate-limited'
   | 'profile-missing'
   | 'profile-invalid'
+  | 'password-reset-failed'
   | 'request-failed';
 
 export interface SupabaseAuthResult {
@@ -36,7 +37,7 @@ export interface SupabaseAuthResult {
 export interface SupabaseRegistration {
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   password: string;
   requestedRole: 'Student' | 'Employee';
 }
@@ -53,10 +54,19 @@ export async function signInWithSupabase(email: string, password: string): Promi
 export async function signUpWithSupabase(input: SupabaseRegistration): Promise<SupabaseAuthResult> {
   if (!supabase) return { user: null, error: 'not-configured' };
   const name = input.name.trim();
+<<<<<<< HEAD
   const email = normalizeAuthEmail(input.email);
   const phone = input.phone.trim();
   if (!name || name.length > 80 || !phone || phone.length > 32 || !isValidAuthEmail(email)
     || !isValidAuthPassword(input.password)
+=======
+  const email = input.email.trim().toLowerCase();
+  const phone = input.phone?.trim() ?? '';
+  if (!name || name.length > 80 || !phone || phone.length > 32 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    || input.password.length < 9 || input.password.length > 256
+    || !/[a-z]/.test(input.password) || !/[A-Z]/.test(input.password)
+    || !/\d/.test(input.password) || !/[\p{P}\p{S}]/u.test(input.password)
+>>>>>>> origin/develop
     || !isApplicantRole(input.requestedRole)) {
     return { user: null, error: 'invalid-registration' };
   }
@@ -92,6 +102,7 @@ export async function signOutSupabase(): Promise<void> {
   if (supabase) await supabase.auth.signOut();
 }
 
+<<<<<<< HEAD
 export async function sendSupabasePasswordReset(email: string): Promise<PasswordResetResult> {
   const client = supabase;
   return requestPasswordReset(
@@ -99,12 +110,27 @@ export async function sendSupabasePasswordReset(email: string): Promise<Password
     window.location.origin,
     client ? (normalizedEmail, options) => client.auth.resetPasswordForEmail(normalizedEmail, options) : null,
   );
+=======
+export async function sendPasswordResetEmail(email: string): Promise<SupabaseAuthError | null> {
+  if (!supabase) return 'not-configured';
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return 'invalid-registration';
+  const redirectTo = `${window.location.origin}/?recovery=1`;
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
+  return error ? 'password-reset-failed' : null;
+>>>>>>> origin/develop
 }
 
-export async function updateSupabasePassword(password: string): Promise<{ ok: boolean }> {
-  if (!supabase) return { ok: false };
+export async function sendSupabasePasswordReset(email: string): Promise<{ ok: boolean }> {
+  return { ok: (await sendPasswordResetEmail(email)) === null };
+}
+
+export async function updateSupabasePassword(password: string): Promise<SupabaseAuthError | null> {
+  if (!supabase) return 'not-configured';
+  if (password.length < 9 || password.length > 256 || !/[a-z]/.test(password) || !/[A-Z]/.test(password)
+    || !/\d/.test(password) || !/[\p{P}\p{S}]/u.test(password)) return 'invalid-registration';
   const { error } = await supabase.auth.updateUser({ password });
-  return { ok: !error };
+  return error ? 'password-reset-failed' : null;
 }
 
 async function resolveProfile(authUser: SupabaseAuthUser): Promise<SupabaseAuthResult> {
@@ -171,6 +197,8 @@ export function getSupabaseAuthErrorMessage(error: SupabaseAuthError): string {
       return 'สร้างบัญชีแล้วแต่ไม่พบโปรไฟล์ · ตรวจสอบว่าได้ติดตั้ง migration ของ Supabase แล้ว';
     case 'profile-invalid':
       return 'ข้อมูลโปรไฟล์บัญชีไม่ถูกต้อง · ติดต่อผู้ดูแลระบบ';
+    case 'password-reset-failed':
+      return 'ดำเนินการเกี่ยวกับรหัสผ่านไม่สำเร็จ · ตรวจสอบลิงก์และการตั้งค่า Auth แล้วลองใหม่';
     case 'request-failed':
       return 'ติดต่อ Supabase ไม่สำเร็จ · ตรวจอินเทอร์เน็ต การตั้งค่าโปรเจกต์ และ migration แล้วลองใหม่';
   }
