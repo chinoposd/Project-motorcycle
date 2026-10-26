@@ -61,6 +61,13 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
     './auth/managerProfile': managerProfile,
     './auth/userProfile': userProfile,
     './auth/profilePhoto': profilePhoto,
+    './data/prototypeState': {
+      PROTOTYPE_STORAGE_KEY: 'ev-walailak-prototype-state:v1',
+      readPrototypeState: () => ({ session: null, alerts: [], issues: [], trips: [] }),
+      readLatestPrototypeState: (state: unknown) => state,
+      expirePrototypeReservation: (state: unknown) => state,
+      writePrototypeState: () => true,
+    },
     './auth/supabaseProfile': {
       createSupabaseProfilePhotoUrl: async () => null,
       saveSupabaseProfilePhoto: async () => ({ ok: false, message: 'not called in auth event tests' }),
@@ -110,7 +117,10 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
     __vite_ssr_exports__: exports,
     __vite_ssr_exportName__: (name: string, getter: () => unknown) => Object.defineProperty(exports, name, { get: getter }),
     queueMicrotask,
-    window: { location, history, addEventListener() {}, removeEventListener() {}, setTimeout, clearTimeout },
+    URL,
+    URLSearchParams,
+    window: { location, history, addEventListener() {}, removeEventListener() {}, setTimeout, clearTimeout,
+      setInterval: () => 0, clearInterval() {} },
     async __vite_ssr_import__(id: string) {
     if (id in modules) return modules[id];
     if (id.startsWith('./pages/') || id.startsWith('./components/')) return { default: id.split('/').at(-1) };

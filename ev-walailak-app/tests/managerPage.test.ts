@@ -21,10 +21,17 @@ test('manager overview avoids duplicate summaries and shows the Session workflow
     view: 'overview',
     onViewChange: () => {},
     alerts: [],
+    issues: [],
+    trips: [],
+    monitoredSession: null,
+    ownSession: null,
     onAcknowledge: () => {},
     sessionStatus: 'idle',
     onStartPause: () => {},
+    onCancelReservation: () => {},
+    onEnd: () => {},
     onLock: () => {},
+    onOpenUtility: () => {},
     onShowToast: () => {},
   }));
 

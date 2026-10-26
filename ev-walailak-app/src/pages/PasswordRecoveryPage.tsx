@@ -1,28 +1,16 @@
-<<<<<<< HEAD
-import { useState, type FormEvent } from 'react';
-import { LockKeyhole, ShieldCheck } from 'lucide-react';
-import { isValidAuthPassword } from '../auth/passwordPolicy';
-=======
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, BadgeCheck, Bike, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { isDemoAccountEmail } from '../auth/demoAuth';
-import { sendPasswordResetEmail, updateSupabasePassword } from '../auth/supabaseAuth';
-import { supabaseConfig } from '../auth/supabaseClient';
->>>>>>> origin/develop
+import { isValidAuthEmail } from '../auth/emailAddress';
+import { isValidAuthPassword } from '../auth/passwordPolicy';
+import { getPasswordResetFeedback } from '../auth/passwordResetFeedback';
+import { sendSupabasePasswordReset, updateSupabasePassword } from '../auth/supabaseAuth';
 
 interface PasswordRecoveryPageProps {
   mode: 'request' | 'update';
   onClose: () => void;
   onPasswordUpdated: () => void;
 }
-
-const passwordRules = [
-  (value: string) => value.length >= 9,
-  (value: string) => /[a-z]/.test(value),
-  (value: string) => /[A-Z]/.test(value),
-  (value: string) => /\d/.test(value),
-  (value: string) => /[\p{P}\p{S}]/u.test(value),
-];
 
 export default function PasswordRecoveryPage({ mode, onClose, onPasswordUpdated }: PasswordRecoveryPageProps) {
   const [email, setEmail] = useState('');
@@ -49,24 +37,11 @@ export default function PasswordRecoveryPage({ mode, onClose, onPasswordUpdated 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
-<<<<<<< HEAD
-    if (!isValidAuthPassword(password)) {
-      setError('รหัสผ่านต้องยาว 9–256 ตัว มีพิมพ์เล็ก พิมพ์ใหญ่ ตัวเลข และอักขระพิเศษ');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('รหัสผ่านทั้งสองช่องไม่ตรงกัน');
-      return;
-    }
-
-    setIsSaving(true);
-=======
     setMessage('');
     setIsSubmitting(true);
->>>>>>> origin/develop
     try {
       if (mode === 'request') {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        if (!isValidAuthEmail(email)) {
           setError('กรุณากรอกอีเมลให้ถูกต้อง');
           return;
         }
@@ -74,20 +49,16 @@ export default function PasswordRecoveryPage({ mode, onClose, onPasswordUpdated 
           setMessage('บัญชีทดลองไม่มีการส่งอีเมลกู้รหัสผ่าน · ใช้รหัสผ่านเดิมของบัญชีทดลอง');
           return;
         }
-        if (supabaseConfig.mode !== 'configured') {
-          setMessage('ยังไม่ได้เชื่อม Supabase Auth · ไม่มีการส่งอีเมลจริง');
+        const feedback = getPasswordResetFeedback(await sendSupabasePasswordReset(email));
+        if (feedback.tone === 'error') {
+          setError(feedback.message);
           return;
         }
-        const result = await sendPasswordResetEmail(email);
-        if (result) {
-          setError(result === 'invalid-registration' ? 'กรุณาตรวจสอบอีเมล' : 'ส่งคำขอไม่สำเร็จ · ตรวจสอบการเชื่อมต่อ Supabase แล้วลองอีกครั้ง');
-          return;
-        }
-        setMessage('ส่งคำขอแล้ว · หากอีเมลนี้มีบัญชีในระบบ จะได้รับลิงก์สำหรับตั้งรหัสผ่านใหม่');
+        setMessage(feedback.message);
         return;
       }
 
-      if (!passwordRules.every((rule) => rule(password))) {
+      if (!isValidAuthPassword(password)) {
         setError('รหัสผ่านต้องครบทั้ง 9 ตัวอักษร ตัวพิมพ์เล็ก/ใหญ่ ตัวเลข และอักขระพิเศษ');
         return;
       }
@@ -111,30 +82,6 @@ export default function PasswordRecoveryPage({ mode, onClose, onPasswordUpdated 
 
   const isUpdate = mode === 'update';
   return (
-<<<<<<< HEAD
-    <main className="login-main">
-      <section className="login-card" aria-labelledby="password-recovery-title">
-        <header className="login-heading">
-          <span className="profile-section-icon"><ShieldCheck size={20} aria-hidden="true" /></span>
-          <h1 id="password-recovery-title">ตั้งรหัสผ่านใหม่</h1>
-          <p>กำหนดรหัสผ่านใหม่สำหรับบัญชี Supabase ของคุณ</p>
-        </header>
-        <form className="login-form" onSubmit={(event) => { void handleSubmit(event); }}>
-          <label className="login-field" htmlFor="recovery-password">
-            <span>รหัสผ่านใหม่</span>
-            <span className="login-input-wrap"><input id="recovery-password" type="password" autoComplete="new-password" maxLength={256} required value={password} onChange={(event) => setPassword(event.target.value)} /></span>
-          </label>
-          <label className="login-field" htmlFor="recovery-confirm-password">
-            <span>ยืนยันรหัสผ่านใหม่</span>
-            <span className="login-input-wrap"><input id="recovery-confirm-password" type="password" autoComplete="new-password" maxLength={256} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></span>
-          </label>
-          {error && <p className="login-error" role="alert"><LockKeyhole size={14} aria-hidden="true" /> {error}</p>}
-          <button className="login-submit" type="submit" disabled={isSaving}>{isSaving ? 'กำลังบันทึก…' : 'บันทึกรหัสผ่านใหม่'}</button>
-          <button className="login-register-button" type="button" disabled={isSaving} onClick={onCancel}>ยกเลิกและกลับไปเข้าสู่ระบบ</button>
-        </form>
-      </section>
-    </main>
-=======
     <div className="recovery-page">
       <main className="recovery-form-column">
         <section aria-labelledby="recovery-title" className="recovery-form-content" ref={dialogRef}>
@@ -159,6 +106,5 @@ export default function PasswordRecoveryPage({ mode, onClose, onPasswordUpdated 
       </main>
       <aside className="recovery-info-panel"><div className="recovery-info-content"><div className="register-info-kicker"><Bike size={15} />EV Walailak · Electric Motorcycle</div><h2>{isUpdate ? 'รักษาบัญชีของคุณให้ปลอดภัย' : 'กู้คืนบัญชีอย่างปลอดภัย'}</h2><p>ใช้ลิงก์ที่ส่งไปยังอีเมลบัญชีจริงเพื่อตั้งรหัสผ่านใหม่</p><div className="recovery-illustration"><img src="/assets/ev-01-motorcycle.png" alt="รถจักรยานยนต์ไฟฟ้าต้นแบบ EV-01" /></div><div className="register-info-note"><span className="register-info-icon"><ShieldCheck size={17} /></span><p>ลิงก์ใช้ได้ตามอายุที่กำหนดโดย Supabase Auth · หากหมดอายุให้ขอลิงก์ใหม่</p></div><div className="register-info-note"><span className="register-info-icon"><Mail size={17} /></span><p>ไม่พบอีเมลหรือบัญชีทดลอง จะไม่มีการเปิดเผยว่ามีบัญชีอยู่หรือไม่</p></div></div></aside>
     </div>
->>>>>>> origin/develop
   );
 }
