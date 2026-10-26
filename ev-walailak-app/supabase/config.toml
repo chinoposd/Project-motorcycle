@@ -1,0 +1,5 @@
+[functions.vehicle-gateway]
+verify_jwt = false
+
+[functions.privacy-worker]
+verify_jwt = false
