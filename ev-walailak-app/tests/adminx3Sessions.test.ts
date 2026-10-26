@@ -11,7 +11,7 @@ async function ready() {
     stopped=true,throttle_zero=true,bms_ok=true,ai_ready=true,gps_reliable=true,motor_ready=false,online=true;
     insert into ops_zones(kind,geometry,reason,created_by) values('return','{"type":"Polygon","coordinates":[[[99,8],[100,8],[100,9],[99,8]]]}','test fixture','${ids.admin}'),
     ('main','{"type":"Polygon","coordinates":[[[99,8],[100,8],[100,9],[99,8]]]}','test fixture','${ids.admin}') on conflict do nothing;
-    update ops_project_config set privacy_notice_version='reviewed-v1',terms_version='reviewed-v1';
+    update ops_project_config set privacy_notice_version='reviewed-v1',terms_version='reviewed-v1',privacy_notice_text='Test fixture reviewed privacy notice',terms_text='Test fixture reviewed usage terms';
     update admin_portal_settings set allowed_weekdays=array[0,1,2,3,4,5,6]::smallint[],session_start='00:00',session_end='23:59:59';`);
 }
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BadgeCheck, Check, CircleAlert, LoaderCircle, RefreshCw, Search, ShieldCheck, UserRoundCheck, UserRoundX } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import { initialAccounts } from '../data/mockData';
+import AdminWorkspace from '../features/operations/AdminWorkspace';
 import type { ApplicantRole, ReviewDecision } from '../auth/adminAccountReview';
 import { reviewPendingAdminAccount } from '../auth/adminAccountReview';
 import { listAllAdminAccounts, updateAdminAccount, type AccountAction, type ManagedAccount } from '../auth/adminAccounts';
@@ -198,7 +199,7 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
   return (
     <>
       <PageHeader title="จัดการระบบ" description="บัญชีทั้งหมดและเครื่องมือผู้ดูแล" badge="Admin" />
-      <div className="dashboard-grid admin-grid">
+      <AdminWorkspace isDemo={isDemo} onShowToast={onShowToast} onChanged={()=>void loadAccounts()} accounts={<div className="dashboard-grid admin-grid">
         <section className="panel admin-users-panel" id="admin-accounts">
           <div className="panel-heading">
             <div>
@@ -308,8 +309,7 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
           </dialog>
         </section>
 
-      </div>
-      <AdminPortalPanels isDemo={isDemo} pendingAccountCount={!isDemo && listState === 'ready' ? pendingCount : null} onShowToast={onShowToast} />
+      </div>} settings={<AdminPortalPanels enhanced isDemo={isDemo} pendingAccountCount={!isDemo && listState === 'ready' ? pendingCount : null} onShowToast={onShowToast} />} />
     </>
   );
 }

@@ -161,7 +161,7 @@ begin
       from public.ops_account_appeals a join public.profiles p on p.id=a.user_id),'[]'::jsonb) else '[]'::jsonb end,
     'nfc_cards',case when public.admin_is_approved() then coalesce((select jsonb_agg((to_jsonb(c)-'card_ref')||jsonb_build_object('user_name',p.full_name) order by c.registered_at desc)
       from public.ops_nfc_cards c join public.profiles p on p.id=c.user_id),'[]'::jsonb) else '[]'::jsonb end,
-    'accounts',case when public.admin_is_approved() then coalesce((select jsonb_agg(jsonb_build_object('id',id,'name',full_name,'role',role,'status',account_status)) from public.profiles),'[]'::jsonb) else '[]'::jsonb end)
+    'accounts',case when public.admin_is_approved() then coalesce((select jsonb_agg(jsonb_build_object('id',id,'name',full_name,'role',role,'status',account_status,'driving_permission',driving_permission,'induction_confirmed',induction_confirmed)) from public.profiles),'[]'::jsonb) else '[]'::jsonb end)
     into base;
   return base||app_ops.session_snapshot(p_date)||app_ops.workflow_snapshot(p_date);
 end $$;

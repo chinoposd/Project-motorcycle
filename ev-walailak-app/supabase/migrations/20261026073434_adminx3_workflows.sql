@@ -368,6 +368,10 @@ returns jsonb language plpgsql set search_path='' as $$
 declare old jsonb;result jsonb;s public.ops_sessions%rowtype;g public.ops_gps_reviews%rowtype;latest integer;why text:=btrim(coalesce(p_payload->>'reason',''));target uuid;
 begin
   if p_action='review_privacy' then return app_ops.privacy_review(p_payload);end if;
+  if p_action='service_control' then
+    if p_payload->>'operation' not in ('set_manual_service_stop','set_safety_block','confirm_service_reopen') then raise exception 'Invalid service operation' using errcode='22023';end if;
+    return public.admin_portal_action(p_payload->>'operation',p_payload);
+  end if;
   if p_action in ('clear_safety_block','close_session_exception','resolve_vehicle_conflict') then
     perform app_ops.require_operator(false);
     if p_payload->>'physical_inspection_confirmed' is distinct from 'true' or length(why)<5 then raise exception 'Physical inspection confirmation and reason required' using errcode='22023';end if;
@@ -470,9 +474,11 @@ begin
     if result is null then raise exception 'Failed job not found' using errcode='40001';end if;
     perform app_ops.audit(p_action,'privacy_job',p_payload->>'id',why,null,result);return result;
   elsif p_action='publish_ride_policy' then
-    if length(coalesce(p_payload->>'privacy_notice_version',''))<1 or length(coalesce(p_payload->>'terms_version',''))<1 then raise exception 'Reviewed notice and terms versions required' using errcode='22023';end if;
+    if length(coalesce(p_payload->>'privacy_notice_version',''))<1 or length(coalesce(p_payload->>'terms_version',''))<1
+      or length(coalesce(p_payload->>'privacy_notice_text',''))<5 or length(coalesce(p_payload->>'terms_text',''))<5
+      or p_payload->>'advisor_review_confirmed' is distinct from 'true' then raise exception 'Reviewed notice/terms text, versions and advisor confirmation required' using errcode='22023';end if;
     select to_jsonb(c) into old from public.ops_project_config c for update;
-    update public.ops_project_config set privacy_notice_version=p_payload->>'privacy_notice_version',terms_version=p_payload->>'terms_version',version=version+1 returning to_jsonb(ops_project_config) into result;
+    update public.ops_project_config set privacy_notice_version=p_payload->>'privacy_notice_version',terms_version=p_payload->>'terms_version',privacy_notice_text=p_payload->>'privacy_notice_text',terms_text=p_payload->>'terms_text',version=version+1 returning to_jsonb(ops_project_config) into result;
     perform app_ops.audit(p_action,'settings','ride_policy',why,old,result);return result;
   end if;
   return null;

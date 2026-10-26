@@ -1,5 +1,6 @@
 -- Web authorization is separate from a trusted motor confirmation.
-alter table public.ops_project_config add column privacy_notice_version text, add column terms_version text;
+alter table public.ops_project_config add column privacy_notice_version text, add column terms_version text,
+  add column privacy_notice_text text,add column terms_text text;
 create table public.ops_vehicle_state (
   vehicle_id text primary key check(vehicle_id='EV-01'), telemetry_at timestamptz, valid_until timestamptz,
   online boolean, protocol_verified boolean not null default false,
@@ -194,7 +195,7 @@ begin
   perform app_ops.driver_check(auth.uid(),true);
   if p_inspection_confirmed is distinct from true then raise exception 'Pre-ride inspection must be confirmed' using errcode='22023';end if;
   select * into cfg from public.ops_project_config where singleton;
-  if p_terms_confirmed is distinct from true or cfg.privacy_notice_version is null or cfg.terms_version is null then
+  if p_terms_confirmed is distinct from true or cfg.privacy_notice_version is null or cfg.terms_version is null or cfg.privacy_notice_text is null or cfg.terms_text is null then
     raise exception 'Published Privacy Notice and terms acceptance required' using errcode='22023';end if;
   if exists(select 1 from public.ops_sessions where status not in ('Completed','Cancelled','Expired','Conflict')) then raise exception 'Vehicle is busy or reserved' using errcode='22023';end if;
   if exists(select 1 from public.ops_vehicle_state where motor_ready is distinct from false) then raise exception 'Motor state unresolved' using errcode='22023';end if;
@@ -465,7 +466,7 @@ begin
       and (policy->>'limit')::integer-count_value between 1 and (policy->>'warning_remaining')::integer),'[]'::jsonb),
     'notices',coalesce((select jsonb_agg(to_jsonb(n) order by created_at desc) from public.ops_user_notices n where user_id=auth.uid() and (expires_at is null or expires_at>now())),'[]'::jsonb),
     'zones',case when approved then coalesce((select jsonb_agg(jsonb_build_object('kind',kind,'version',version,'geometry',geometry)) from public.ops_zones where active),'[]'::jsonb) else '[]'::jsonb end,
-    'consent_versions',(select jsonb_build_object('privacy',privacy_notice_version,'terms',terms_version) from public.ops_project_config));
+    'consent_versions',(select jsonb_build_object('privacy',privacy_notice_version,'terms',terms_version,'privacy_text',privacy_notice_text,'terms_text',terms_text) from public.ops_project_config));
 end $$;
 
 create function public.operations_maintenance()

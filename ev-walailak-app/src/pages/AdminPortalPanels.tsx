@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Activity, AlertTriangle, Archive, BadgeCheck, Bell, Check, Clock3, FileClock, LoaderCircle, Megaphone, Save, ShieldCheck, UserRoundCheck } from 'lucide-react';
 import { loadAdminPortal, runAdminPortalAction, type AdminPortalSnapshot, type AnnouncementRole, type PortalAnnouncement, type PortalSettings, type PrivacyRequest } from '../auth/adminPortal';
 
-interface AdminPortalPanelsProps { isDemo: boolean; pendingAccountCount?: number | null; onShowToast: (message: string) => void; }
+interface AdminPortalPanelsProps { isDemo: boolean; enhanced?: boolean; pendingAccountCount?: number | null; onShowToast: (message: string) => void; }
 const weekdays = [
   { value: 1, label: 'จันทร์' }, { value: 2, label: 'อังคาร' }, { value: 3, label: 'พุธ' },
   { value: 4, label: 'พฤหัสบดี' }, { value: 5, label: 'ศุกร์' }, { value: 6, label: 'เสาร์' }, { value: 0, label: 'อาทิตย์' },
@@ -33,7 +33,7 @@ const unavailableSnapshot: AdminPortalSnapshot = {
   settings: { ...demoSnapshot.settings },
 };
 
-export default function AdminPortalPanels({ isDemo, pendingAccountCount = null, onShowToast }: AdminPortalPanelsProps) {
+export default function AdminPortalPanels({ isDemo, enhanced=false, pendingAccountCount = null, onShowToast }: AdminPortalPanelsProps) {
   const [loadedSnapshot, setLoadedSnapshot] = useState<AdminPortalSnapshot | null>(isDemo ? demoSnapshot : null);
   const [loading, setLoading] = useState(!isDemo);
   const [error, setError] = useState('');
@@ -161,7 +161,7 @@ export default function AdminPortalPanels({ isDemo, pendingAccountCount = null, 
   ];
 
   return <div className="admin-portal-content">
-    <nav className="admin-section-nav" aria-label="ส่วนงาน Admin">
+    <nav hidden={enhanced} className="admin-section-nav" aria-label="ส่วนงาน Admin">
       <a href="#admin-accounts">บัญชีทั้งหมด</a><a href="#admin-dashboard">Dashboard</a><a href="#admin-driving-permission">Driving Permission</a>
       <a href="#admin-session-settings">เวลาเริ่ม Session</a><a href="#admin-threshold-settings">เกณฑ์ Cancellation / No-show</a>
       <a href="#admin-privacy-requests">คำขอข้อมูลส่วนบุคคล</a><a href="#admin-announcements">ประกาศ</a>
@@ -170,10 +170,10 @@ export default function AdminPortalPanels({ isDemo, pendingAccountCount = null, 
     {loading && <div className="admin-feedback info" role="status"><LoaderCircle className="admin-spinner" size={16} /><span>กำลังโหลดข้อมูล Admin…</span></div>}
     {error && <div className="admin-feedback error" role="alert"><AlertTriangle size={16} /><span>{error} · แสดงโครงหน้า Admin เพื่อดูรายการงาน แต่ยังบันทึกไม่ได้</span><button className="text-button" type="button" onClick={() => void refresh()}>โหลดใหม่</button></div>}
     {isDemo && <div className="admin-feedback info"><ShieldCheck size={16} /><span>แสดงข้อมูลจำลอง · การเปลี่ยนแปลงไม่ถูกบันทึก</span></div>}
-    <section className="admin-summary-grid" id="admin-dashboard" aria-label="สรุป Dashboard Admin">
+    <section hidden={enhanced} className="admin-summary-grid" id="admin-dashboard" aria-label="สรุป Dashboard Admin">
       {summaryCards.map((card) => <article className="panel admin-summary-card" key={card.label}><span className="admin-summary-icon">{card.icon}</span><div><span>{card.label}</span><strong>{card.value}</strong></div></article>)}
     </section>
-    <section className="panel admin-alert-panel"><div className="heading-with-icon"><Bell size={17} /><h2>คำเตือน Cancellation / No-show</h2></div>
+    <section hidden={enhanced} className="panel admin-alert-panel"><div className="heading-with-icon"><Bell size={17} /><h2>คำเตือน Cancellation / No-show</h2></div>
       {unavailable ? <p className="muted">ยังโหลดเกณฑ์และข้อมูลเหตุการณ์ไม่ได้ · ติดตั้ง migration ก่อนตรวจคำเตือน</p> : !snapshot.cancellation_events_available || !snapshot.no_show_events_available
         ? <p className="muted">ยังไม่มีแหล่งข้อมูลเหตุการณ์ Cancellation / No-show สำหรับคำนวณคำเตือน · ไม่ใช้ค่าประมาณแทนข้อมูลจริง</p>
         : <p className="muted">เชื่อมข้อมูลเหตุการณ์แล้ว</p>}
@@ -192,7 +192,7 @@ export default function AdminPortalPanels({ isDemo, pendingAccountCount = null, 
 
     <section className="panel admin-settings-panel" id="admin-session-settings">
       <div className="panel-heading"><div className="heading-with-icon"><Clock3 size={17} /><h2>เวลาขอเริ่ม Session และเกณฑ์ Pilot</h2></div><span className="panel-kicker">Manager ได้รับการยกเว้น</span></div>
-      <p className="muted">การตั้งค่านี้บันทึกในระบบเว็บเท่านั้น จนกว่าจะเชื่อมตัวตรวจสิทธิ์ตอนเริ่ม Session และข้อมูลเหตุการณ์จริงจากรถ</p>
+      <p className="muted">{enhanced?'ใช้ตรวจคำขอเริ่ม Session บนเซิร์ฟเวอร์ ร่วมกับสิทธิ์บัญชีและหลักฐานความพร้อมจริงจากรถ':'การตั้งค่านี้บันทึกในระบบเว็บเท่านั้น จนกว่าจะเชื่อมตัวตรวจสิทธิ์ตอนเริ่ม Session และข้อมูลเหตุการณ์จริงจากรถ'}</p>
       <form className="admin-portal-form" onSubmit={saveSettings}>
         <div className="admin-form-section"><h3>วันและเวลาเริ่ม Session ของ Student / Employee</h3><p className="muted">เวลาไทย · ยังไม่กำหนดค่าเริ่มต้นตาม C-110 · Manager ยกเว้น และ Session ที่เริ่มถูกต้องแล้วไม่ถูกตัดเมื่อเลยเวลา</p><div className="admin-weekdays" role="group" aria-label="วันที่อนุญาตให้ขอเริ่ม Session">{weekdays.map((day) => <label key={day.value}><input type="checkbox" checked={settingsForm.allowed_weekdays?.includes(day.value) ?? false} onChange={(event) => setSettingsForm({ ...settingsForm, allowed_weekdays: event.target.checked ? [...(settingsForm.allowed_weekdays ?? []), day.value].sort() : (settingsForm.allowed_weekdays ?? []).filter((value) => value !== day.value) })} disabled={formDisabled} />{day.label}</label>)}</div><div className="time-range"><label><span>เริ่มเวลา</span><input type="time" value={settingsForm.session_start ?? ''} onChange={(event) => setSettingsForm({ ...settingsForm, session_start: event.target.value || null })} disabled={formDisabled} /></label><label><span>สิ้นสุดเวลา</span><input type="time" value={settingsForm.session_end ?? ''} onChange={(event) => setSettingsForm({ ...settingsForm, session_end: event.target.value || null })} disabled={formDisabled} /></label></div></div>
         <div className="admin-form-section" id="admin-threshold-settings"><h3>ค่าที่รอผล Pilot</h3><p className="muted">เว้นว่างไว้จนกว่าจะได้ตัวเลขจาก Pilot · ค่าใหม่มีผลต่อการประเมินหลังบันทึกเท่านั้น</p><div className="admin-threshold-grid">
@@ -218,7 +218,7 @@ export default function AdminPortalPanels({ isDemo, pendingAccountCount = null, 
         <div className="admin-announcement-list">{snapshot.announcements.map((item) => <article key={item.id}><div><strong>{item.title}</strong><p>{item.body}</p><small>{item.published ? item.starts_at && new Date(item.starts_at) > new Date() ? 'รอเวลาเผยแพร่' : 'เผยแพร่' : 'ฉบับร่าง'} · ผู้รับ: {item.audience_roles.join(', ')}{item.important ? ' · สำคัญ' : ''}{item.published_at ? ` · เริ่ม ${new Date(item.published_at).toLocaleString('th-TH')}` : ''}</small></div><div className="admin-announcement-actions"><button className="text-button" type="button" onClick={() => editAnnouncement(item)} disabled={formDisabled}>แก้ไข</button><button className="text-button" type="button" disabled={formDisabled} onClick={() => toggleAnnouncement(item)}>{item.published ? 'ถอนประกาศ' : 'เผยแพร่'}</button></div></article>)}{snapshot.announcements.length === 0 && <p className="muted">{unavailable ? 'ยังโหลดประกาศไม่ได้' : 'ยังไม่มีประกาศ'}</p>}</div>
       </section>
 
-      <section className="panel admin-privacy-panel" id="admin-privacy-requests">
+      <section hidden={enhanced} className="panel admin-privacy-panel" id="admin-privacy-requests">
         <div className="panel-heading"><div className="heading-with-icon"><Archive size={17} /><h2>คำขอข้อมูลส่วนบุคคล</h2></div><span className="panel-kicker">{openPrivacyRequests.length} รายการรอดำเนินการ</span></div>
         <p className="muted">พิจารณาคำขอเข้าถึง / แก้ไข / ลบ แยกจากการปิดบัญชี · การทำรายการนี้ไม่ลบข้อมูลอัตโนมัติ · เมื่อสิ้นสุดโครงการต้องลบหรือทำข้อมูลระบุตัวบุคคลให้ไม่เชื่อมโยงกลับได้ภายใน 30 วัน โดยคำนึงถึงหน้าที่ตามกฎหมาย</p>
         {snapshot.privacy_requests.map((request) => <article className="admin-request-card" key={request.id}><div className="admin-request-heading"><strong>{request.requester_name || request.requester_email}</strong><span>{request.request_type === 'access' ? 'เข้าถึง' : request.request_type === 'correction' ? 'แก้ไข' : 'ลบข้อมูล'} · {request.status}</span></div><p>{request.details}</p><small>{new Date(request.created_at).toLocaleString('th-TH')}</small>{request.status === 'Pending' || request.status === 'InReview' ? <><textarea rows={2} placeholder="บันทึกผล/ขั้นตอนตามนโยบายโครงการ" value={privacyNotes[request.id] ?? ''} onChange={(event) => setPrivacyNotes({ ...privacyNotes, [request.id]: event.target.value })} disabled={formDisabled} /><div className="button-row"><button className="button button-outline button-small" type="button" onClick={() => reviewPrivacy(request,'InReview')} disabled={formDisabled}>รับเรื่อง</button><button className="button button-primary button-small" type="button" onClick={() => reviewPrivacy(request,'Completed')} disabled={formDisabled}>ปิดคำขอ</button><button className="button button-danger button-small" type="button" onClick={() => reviewPrivacy(request,'Rejected')} disabled={formDisabled}>ปฏิเสธ</button></div></> : <p className="admin-review-note">ผลพิจารณา: {request.admin_note}</p>}</article>)}
@@ -226,7 +226,7 @@ export default function AdminPortalPanels({ isDemo, pendingAccountCount = null, 
       </section>
     </div>
 
-    <section className="panel admin-service-panel" id="admin-service-control">
+    <section hidden={enhanced} className="panel admin-service-panel" id="admin-service-control">
       <div className="panel-heading"><div className="heading-with-icon"><Activity size={17} /><h2>สถานะการให้บริการรถ</h2></div><span className="panel-kicker">การบันทึกผ่านเว็บ · ไม่ใช่สถานะสดจากรถ</span></div>
       <div className="admin-service-status">{unavailable ? <span className="account-status pending">ยังไม่ทราบสถานะบริการ</span> : <><span className={`account-status ${snapshot.service.manual_out_of_service || snapshot.service.safety_block_active || snapshot.service.final_confirmation_required ? 'suspended' : 'approved'}`}>{snapshot.service.manual_out_of_service || snapshot.service.safety_block_active || snapshot.service.final_confirmation_required ? 'หยุด / รอยืนยันเปิด' : 'พร้อมให้บริการ'}</span><span>หยุดโดย Admin: {snapshot.service.manual_out_of_service ? 'ใช่' : 'ไม่'} · Safety Block: {snapshot.service.safety_block_active ? 'ยังทำงาน' : 'ปลดแล้ว'}</span></>}</div>
       <label className="admin-reason-field"><span>เหตุผล / บันทึกการตรวจรถ</span><input value={serviceReason} onChange={(event) => setServiceReason(event.target.value)} maxLength={1000} placeholder="ระบุเหตุผลที่ตรวจสอบได้" disabled={formDisabled} /></label>
