@@ -13,6 +13,55 @@ import AppShell from './components/AppShell';
 import { initialAlerts } from './data/mockData';
 import type { AlertRecord, ManagerView, PageId, SessionStatus } from './types';
 
+const APP_HISTORY_STATE_KEY = '__evWalailakApp';
+
+interface AppHistoryState {
+  page: PageId;
+  managerView: ManagerView;
+}
+
+const APP_PAGE_PATHS: Record<PageId, string> = {
+  home: '/OverviewPage',
+  ride: '/RidePage',
+  manager: '/ManagerPage',
+  'manager-profile': '/ManagerProfilePage',
+  'profile-settings': '/ProfileSettingsPage',
+  admin: '/AdminPage',
+};
+
+function getPageForPath(pathname: string): PageId | null {
+  if (pathname === '/ManagerRidePage') return 'manager';
+  const page = Object.entries(APP_PAGE_PATHS).find(([, path]) => path === pathname)?.[0];
+  return page ? page as PageId : null;
+}
+
+function getManagerViewForPath(pathname: string): ManagerView {
+  return pathname === '/ManagerRidePage' ? 'ride' : 'overview';
+}
+
+function getPathForAppState(page: PageId, managerView: ManagerView): string {
+  return page === 'manager' && managerView === 'ride' ? '/ManagerRidePage' : APP_PAGE_PATHS[page];
+}
+
+function readAppHistoryState(state: unknown): AppHistoryState | null {
+  if (!state || typeof state !== 'object') return null;
+  const appState = (state as Record<string, unknown>)[APP_HISTORY_STATE_KEY];
+  if (!appState || typeof appState !== 'object') return null;
+
+  const { page, managerView } = appState as Record<string, unknown>;
+  const validPages: PageId[] = ['home', 'ride', 'manager', 'manager-profile', 'profile-settings', 'admin'];
+  if (!validPages.includes(page as PageId) || (managerView !== 'overview' && managerView !== 'ride')) return null;
+  return { page: page as PageId, managerView };
+}
+
+function makeHistoryState(page: PageId, managerView: ManagerView): Record<string, unknown> {
+  const currentState = window.history.state;
+  const baseState = currentState && typeof currentState === 'object' && !Array.isArray(currentState)
+    ? currentState as Record<string, unknown>
+    : {};
+  return { ...baseState, [APP_HISTORY_STATE_KEY]: { page, managerView } };
+}
+
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 const ApprovalStatusPage = lazy(() => import('./pages/ApprovalStatusPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -42,8 +91,12 @@ export default function App() {
       ? readManagerProfile(restored.id, restored.name)
       : { name: 'ผู้จัดการระบบ', phone: '', department: 'ระบบบริหารยานพาหนะไฟฟ้า' };
   });
-  const [page, setPage] = useState<PageId>(() => user ? getLandingPage(user.role) : 'home');
-  const [managerView, setManagerView] = useState<ManagerView>('overview');
+  const [page, setPage] = useState<PageId>(() => {
+    const requestedPage = getPageForPath(window.location.pathname);
+    if (user && requestedPage && isPageAllowed(user.role, requestedPage)) return requestedPage;
+    return user ? getLandingPage(user.role) : 'home';
+  });
+  const [managerView, setManagerView] = useState<ManagerView>(() => getManagerViewForPath(window.location.pathname));
   const [sessionStatus, setSessionStatus] = useState<SessionStatus>('active');
   const [alerts, setAlerts] = useState<AlertRecord[]>(() => initialAlerts.map((item) => ({ ...item })));
   const [toast, setToast] = useState('');
@@ -54,9 +107,56 @@ export default function App() {
 
   const showToast = useCallback((message: string) => setToast(message), []);
 
-  function navigatePage(nextPage: PageId) {
+  useEffect(() => {
+    const initialUrl = user ? getPathForAppState(page, managerView) : window.location.href;
+    window.history.replaceState(makeHistoryState(page, managerView), '', initialUrl);
+
+    function handlePopState(event: PopStateEvent) {
+      const appState = readAppHistoryState(event.state);
+      if (!appState) return;
+
+      const activeUser = currentUserRef.current;
+      const nextPage = !activeUser
+        ? 'home'
+        : isPageAllowed(activeUser.role, appState.page)
+          ? appState.page
+          : getLandingPage(activeUser.role);
+      const nextManagerView = appState.managerView;
+
+      currentPageRef.current = nextPage;
+      setPage(nextPage);
+      setManagerView(nextManagerView);
+      const nextUrl = activeUser ? getPathForAppState(nextPage, nextManagerView) : '/LoginPage';
+      if (nextPage !== appState.page || window.location.pathname !== nextUrl) {
+        window.history.replaceState(makeHistoryState(nextPage, nextManagerView), '', nextUrl);
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  function navigatePage(
+    nextPage: PageId,
+    historyMode: 'push' | 'replace' = 'push',
+    nextManagerView: ManagerView = managerView,
+    nextUrl: string = getPathForAppState(nextPage, nextManagerView),
+  ) {
+    const isSameView = currentPageRef.current === nextPage && managerView === nextManagerView;
+    if (isSameView && historyMode === 'push') return;
     currentPageRef.current = nextPage;
     setPage(nextPage);
+    if (managerView !== nextManagerView) setManagerView(nextManagerView);
+    const state = makeHistoryState(nextPage, nextManagerView);
+    if (historyMode === 'push') window.history.pushState(state, '', nextUrl);
+    else window.history.replaceState(state, '', nextUrl);
+  }
+
+  function navigateManagerView(nextView: ManagerView) {
+    if (managerView === nextView) return;
+    setManagerView(nextView);
+    const state = makeHistoryState(currentPageRef.current, nextView);
+    window.history.pushState(state, '', getPathForAppState(currentPageRef.current, nextView));
   }
 
   useEffect(() => {
@@ -69,7 +169,7 @@ export default function App() {
       setUser(null);
       setProfilePhoto(null);
       setSessionStatus('idle');
-      navigatePage('home');
+      navigatePage('home', 'replace', managerView, '/LoginPage');
     }
 
     async function resolveCloudSession(requestEpoch: number, expectedUserId?: string) {
@@ -95,7 +195,11 @@ export default function App() {
           }
           if (shouldResetPage) {
             setSessionStatus('idle');
-            navigatePage(getPageForAuthUpdate(result.user));
+            const requestedPage = getPageForPath(window.location.pathname);
+            const nextPage = requestedPage && isPageAllowed(result.user.role, requestedPage)
+              ? requestedPage
+              : getPageForAuthUpdate(result.user);
+            navigatePage(nextPage, 'replace', getManagerViewForPath(window.location.pathname));
           }
           setManagerProfile({ name: 'ผู้จัดการระบบ', phone: '', department: 'ระบบบริหารยานพาหนะไฟฟ้า' });
         } else if (result.error === 'profile-missing' || result.error === 'profile-invalid') {
@@ -167,7 +271,7 @@ export default function App() {
     currentUserRef.current = authenticatedUser;
     setUser(authenticatedUser);
     setProfilePhoto(readProfilePhoto(nextUser.id));
-    navigatePage(getLandingPage(nextUser.role));
+    navigatePage(getLandingPage(nextUser.role), 'replace');
     setSessionStatus('active');
     setToast('');
   }
@@ -181,8 +285,7 @@ export default function App() {
     setUser(null);
     setProfilePhoto(null);
     setManagerProfile({ name: 'ผู้จัดการระบบ', phone: '', department: 'ระบบบริหารยานพาหนะไฟฟ้า' });
-    navigatePage('home');
-    setManagerView('overview');
+    navigatePage('home', 'replace', 'overview', '/LoginPage');
     setSessionStatus('idle');
     setToast('');
   }
@@ -299,7 +402,7 @@ export default function App() {
     setUser(null);
     setProfilePhoto(null);
     setSessionStatus('idle');
-    navigatePage('home');
+    navigatePage('home', 'replace', managerView, '/LoginPage');
     setToast('เปลี่ยนรหัสผ่านแล้ว · เข้าสู่ระบบด้วยรหัสผ่านใหม่ได้เลย');
   }
 
@@ -312,7 +415,7 @@ export default function App() {
     currentUserRef.current = null;
     setUser(null);
     setProfilePhoto(null);
-    navigatePage('home');
+    navigatePage('home', 'replace', 'overview', '/LoginPage');
     setSessionStatus('idle');
     setToast('ปิดบัญชีตัวอย่างแล้ว · ประวัติเดิมไม่ได้ถูกลบ');
     return true;
@@ -354,7 +457,7 @@ export default function App() {
       return;
     }
     setSessionStatus('idle');
-    navigatePage('home');
+    navigatePage('home', 'replace');
     showToast('Session ตัวอย่างสิ้นสุดแล้ว · ระบบจริงต้องยืนยันจุดคืนรถและสถานะรถ');
   }
 
@@ -383,11 +486,11 @@ export default function App() {
   );
 
   return (
-    <AppShell authSource={user.authSource} page={page} breadcrumbLabel={page === 'manager' ? (managerView === 'overview' ? 'ภาพรวมการปฏิบัติงาน' : 'ขับขี่รถ') : undefined} breadcrumbParent={page === 'manager' && managerView === 'ride' ? { label: 'ภาพรวมการปฏิบัติงาน', onNavigate: () => setManagerView('overview') } : undefined} user={user} profilePhoto={profilePhoto} onNavigate={handleNavigate} onLogout={handleLogout}>
+    <AppShell authSource={user.authSource} page={page} breadcrumbLabel={page === 'manager' ? (managerView === 'overview' ? 'ภาพรวมการปฏิบัติงาน' : 'ขับขี่รถ') : undefined} breadcrumbParent={page === 'manager' && managerView === 'ride' ? { label: 'ภาพรวมการปฏิบัติงาน', onNavigate: () => navigateManagerView('overview') } : undefined} user={user} profilePhoto={profilePhoto} onNavigate={handleNavigate} onLogout={handleLogout}>
       <Suspense fallback={appPageFallback}>
         {page === 'home' && <OverviewPage sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
         {page === 'ride' && <RidePage status={sessionStatus} onPauseResume={handleStartPause} onEnd={handleEndSession} onShowToast={showToast} />}
-        {page === 'manager' && <ManagerPage view={managerView} onViewChange={setManagerView} alerts={alerts} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
+        {page === 'manager' && <ManagerPage view={managerView} onViewChange={navigateManagerView} alerts={alerts} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onLock={handleLock} onShowToast={showToast} />}
         {page === 'manager-profile' && user.role === 'Manager' && <ManagerProfilePage user={user} profile={managerProfile} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleManagerProfileSave} onCancel={() => handleNavigate('manager')} canCloseAccount={sessionStatus === 'idle'} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
         {page === 'profile-settings' && user.role !== 'Manager' && <ProfileSettingsPage user={user} profile={user.authSource === 'supabase' ? { name: user.name, phone: user.phone ?? '' } : readUserProfile(user.id)} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleNavigate(getLandingPage(user.role))} canCloseAccount={user.authSource === 'demo' && (user.role === 'Admin' || sessionStatus === 'idle')} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
         {page === 'admin' && <AdminPage authSource={user.authSource} />}

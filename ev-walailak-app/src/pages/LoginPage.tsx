@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   Bike,
   BriefcaseBusiness,
@@ -33,14 +33,72 @@ const roleIcons: Record<UserRole, typeof GraduationCap> = {
   Admin: Settings,
 };
 
+const AUTH_ROUTE_STATE_KEY = '__evWalailakAuthRoute';
+
+function writeAuthRoute(route: 'login' | 'register', mode: 'push' | 'replace', path: string) {
+  const currentState = window.history.state;
+  const baseState = currentState && typeof currentState === 'object' && !Array.isArray(currentState)
+    ? currentState as Record<string, unknown>
+    : {};
+  const nextState = { ...baseState, [AUTH_ROUTE_STATE_KEY]: route };
+  if (mode === 'push') window.history.pushState(nextState, '', path);
+  else window.history.replaceState(nextState, '', path);
+}
+
 export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isRegisterOpen, setIsRegisterOpen] = useState(() => window.location.pathname === '/RegisterPage');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const currentState = window.history.state;
+    const authRoute = currentState && typeof currentState === 'object'
+      ? (currentState as Record<string, unknown>)[AUTH_ROUTE_STATE_KEY]
+      : undefined;
+
+    if (window.location.pathname === '/RegisterPage' && authRoute !== 'register') {
+      writeAuthRoute('login', 'replace', `/LoginPage${window.location.search}${window.location.hash}`);
+      writeAuthRoute('register', 'push', `/RegisterPage${window.location.search}${window.location.hash}`);
+    } else if (window.location.pathname !== '/LoginPage' && window.location.pathname !== '/RegisterPage') {
+      writeAuthRoute('login', 'replace', `/LoginPage${window.location.search}${window.location.hash}`);
+    } else if (window.location.pathname === '/LoginPage' && authRoute !== 'login') {
+      writeAuthRoute('login', 'replace', `${window.location.pathname}${window.location.search}${window.location.hash}`);
+    }
+
+    function syncRegisterRoute() {
+      setIsRegisterOpen(window.location.pathname === '/RegisterPage');
+    }
+
+    window.addEventListener('popstate', syncRegisterRoute);
+    return () => window.removeEventListener('popstate', syncRegisterRoute);
+  }, []);
+
+  function openRegister() {
+    setError('');
+    if (window.location.pathname !== '/RegisterPage') {
+      writeAuthRoute('register', 'push', `/RegisterPage${window.location.search}${window.location.hash}`);
+    }
+    setIsRegisterOpen(true);
+  }
+
+  function closeRegister() {
+    const currentState = window.history.state;
+    const authRoute = currentState && typeof currentState === 'object'
+      ? (currentState as Record<string, unknown>)[AUTH_ROUTE_STATE_KEY]
+      : undefined;
+
+    if (window.location.pathname === '/RegisterPage' && authRoute === 'register') {
+      window.history.back();
+      return;
+    }
+
+    writeAuthRoute('login', 'replace', `/LoginPage${window.location.search}${window.location.hash}`);
+    setIsRegisterOpen(false);
+  }
 
   function handleShortcut(role: UserRole) {
     const credentials = getDemoCredentials(role);
@@ -169,10 +227,7 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
           <button
             className="login-register-button"
             type="button"
-            onClick={() => {
-              setIsRegisterOpen(true);
-              setError('');
-            }}
+            onClick={openRegister}
           >
             <UserPlus size={17} aria-hidden="true" />
             <span>ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก</span>
@@ -203,7 +258,7 @@ export default function LoginPage({ onLogin, notice = '' }: LoginPageProps) {
           <p className="login-disclosure"><LockKeyhole size={14} aria-hidden="true" /><span>บัญชีทดลองบันทึกเฉพาะเบราว์เซอร์นี้ · ไม่ใช่ระบบยืนยันตัวตนจริง</span></p>
         </section>
       </main>
-      {isRegisterOpen && <RegisterPage onClose={() => setIsRegisterOpen(false)} />}
+      {isRegisterOpen && <RegisterPage onClose={closeRegister} />}
     </div>
   );
 }
