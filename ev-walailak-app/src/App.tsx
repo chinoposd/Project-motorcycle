@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AuthRequestEpoch } from './auth/authRequestEpoch';
 import { requiresApprovalGate } from './auth/accountAccess';
 import { getPageForAuthUpdate, shouldResetPageForAuthUpdate } from './auth/authSessionPolicy';
 import { clearDemoSession, closeDemoAccount, getLandingPage, isPageAllowed, readDemoSession, writeDemoSession, type DemoUser } from './auth/demoAuth';
-import { getCurrentSupabaseUser, signOutSupabase, type AppUser } from './auth/supabaseAuth';
+import { getCurrentSupabaseUser, sendSupabasePasswordReset, signOutSupabase, updateSupabasePassword, type AppUser } from './auth/supabaseAuth';
+import { createSupabaseProfilePhotoUrl, saveSupabaseProfilePhoto, updateSupabaseProfile } from './auth/supabaseProfile';
 import { supabase, supabaseConfig } from './auth/supabaseClient';
 import { readManagerProfile, writeManagerProfile, type ManagerProfile } from './auth/managerProfile';
 import { readUserProfile, writeUserProfile } from './auth/userProfile';
@@ -52,6 +53,67 @@ function isWithinServiceHours(start: string, end: string, now = new Date()): boo
   return start <= end ? localTime >= start && localTime <= end : localTime >= start || localTime <= end;
 }
 
+const APP_HISTORY_STATE_KEY = '__evWalailakApp';
+
+interface AppHistoryState {
+  page: PageId;
+  managerView: ManagerView;
+}
+
+const APP_PAGE_PATHS: Record<PageId, string> = {
+  home: '/OverviewPage',
+  ride: '/RidePage',
+  manager: '/ManagerPage',
+  'manager-profile': '/ManagerProfilePage',
+  'profile-settings': '/ProfileSettingsPage',
+  admin: '/AdminPage',
+};
+
+function getPageForPath(pathname: string): PageId | null {
+  if (pathname === '/ManagerRidePage') return 'manager';
+  const page = Object.entries(APP_PAGE_PATHS).find(([, path]) => path === pathname)?.[0];
+  return page ? page as PageId : null;
+}
+
+function getManagerViewForPath(pathname: string): ManagerView {
+  return pathname === '/ManagerRidePage' ? 'ride' : 'overview';
+}
+
+function getPathForAppState(page: PageId, managerView: ManagerView): string {
+  return page === 'manager' && managerView === 'ride' ? '/ManagerRidePage' : APP_PAGE_PATHS[page];
+}
+
+function readAppHistoryState(state: unknown): AppHistoryState | null {
+  if (!state || typeof state !== 'object') return null;
+  const appState = (state as Record<string, unknown>)[APP_HISTORY_STATE_KEY];
+  if (!appState || typeof appState !== 'object') return null;
+
+  const { page, managerView } = appState as Record<string, unknown>;
+  const validPages: PageId[] = ['home', 'ride', 'manager', 'manager-profile', 'profile-settings', 'admin'];
+  if (!validPages.includes(page as PageId) || (managerView !== 'overview' && managerView !== 'ride')) return null;
+  return { page: page as PageId, managerView };
+}
+
+function makeHistoryState(page: PageId, managerView: ManagerView): Record<string, unknown> {
+  const currentState = window.history.state;
+  const baseState = currentState && typeof currentState === 'object' && !Array.isArray(currentState)
+    ? currentState as Record<string, unknown>
+    : {};
+  return { ...baseState, [APP_HISTORY_STATE_KEY]: { page, managerView } };
+}
+
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const ApprovalStatusPage = lazy(() => import('./pages/ApprovalStatusPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ManagerPage = lazy(() => import('./pages/ManagerPage'));
+const ManagerProfilePage = lazy(() => import('./pages/ManagerProfilePage'));
+const ProfileSettingsPage = lazy(() => import('./pages/ProfileSettingsPage'));
+const OverviewPage = lazy(() => import('./pages/OverviewPage'));
+const PasswordRecoveryPage = lazy(() => import('./pages/PasswordRecoveryPage'));
+const RidePage = lazy(() => import('./pages/RidePage'));
+
+const appPageFallback = <div className="page-loading" role="status" aria-live="polite">กำลังโหลดหน้า…</div>;
+
 export default function App() {
   const [user, setUser] = useState<AppUser | null>(() => {
     const restored = readDemoSession();
@@ -62,6 +124,7 @@ export default function App() {
     return { ...restored, name, authSource: 'demo' };
   });
   const [isRestoringAuth, setIsRestoringAuth] = useState(supabaseConfig.mode === 'configured');
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [managerProfile, setManagerProfile] = useState<ManagerProfile>(() => {
     const restored = readDemoSession();
     return restored?.role === 'Manager'
@@ -281,6 +344,7 @@ export default function App() {
 
   function handleLogout() {
     authRequestEpochRef.current.invalidate();
+    setIsPasswordRecovery(false);
     if (user?.authSource === 'supabase') void signOutSupabase();
     clearDemoSession();
     currentUserRef.current = null;
@@ -295,8 +359,8 @@ export default function App() {
 
   function handleNavigate(nextPage: PageId) {
     if (!user) return;
-    if (user.authSource === 'supabase' && (nextPage === 'manager-profile' || nextPage === 'profile-settings')) {
-      showToast('การแก้โปรไฟล์บัญชีจริงยังไม่เปิดใช้ · ไม่มีการบันทึกข้อมูล');
+    if (user.authSource === 'supabase' && nextPage === 'manager-profile') {
+      showToast('การตั้งค่าโปรไฟล์ Manager ยังไม่เปิดใช้');
       return;
     }
     navigatePage(isPageAllowed(user.role, nextPage) ? nextPage : getLandingPage(user.role));
@@ -320,10 +384,24 @@ export default function App() {
     return true;
   }
 
-  function handleUserProfileSave(profile: { name?: string; phone: string }): boolean {
+  async function handleUserProfileSave(profile: { name?: string; phone: string }): Promise<boolean> {
     if (user?.authSource === 'supabase') {
-      showToast('การแก้โปรไฟล์บัญชีจริงยังไม่เปิดใช้ · ไม่มีการบันทึกข้อมูล');
-      return false;
+      let result;
+      try {
+        result = await updateSupabaseProfile(user.id, profile);
+      } catch {
+        showToast('บันทึกไม่สำเร็จ · ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+        return false;
+      }
+      if (!result.ok) {
+        showToast(result.message);
+        return false;
+      }
+      const updatedUser = { ...user, name: result.name, phone: result.phone };
+      currentUserRef.current = updatedUser;
+      setUser(updatedUser);
+      showToast('บันทึกข้อมูลโปรไฟล์ใน Supabase แล้ว');
+      return true;
     }
     if (!user || user.role === 'Manager' || !writeUserProfile(user.id, profile, user.role === 'Admin' ? user.name : undefined)) {
       showToast('บันทึกไม่สำเร็จ · เบราว์เซอร์อาจปิดการจัดเก็บข้อมูล');
@@ -338,10 +416,28 @@ export default function App() {
     return true;
   }
 
-  function handleProfilePhotoSave(photo: string | null): boolean {
-    if (user?.authSource === 'supabase') {
-      showToast('การแก้โปรไฟล์บัญชีจริงยังไม่เปิดใช้ · ไม่มีการบันทึกรูป');
-      return false;
+  async function handleProfilePhotoSave(photo: string | null): Promise<boolean> {
+    if (!user) return false;
+    if (user.authSource === 'supabase') {
+      let result;
+      try {
+        result = await saveSupabaseProfilePhoto(user.id, user.avatarPath ?? null, photo);
+      } catch {
+        showToast('บันทึกรูปไม่สำเร็จ · ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+        return false;
+      }
+      if (!result.ok) {
+        showToast(result.message);
+        return false;
+      }
+      const updatedUser = { ...user, avatarPath: result.avatarPath };
+      currentUserRef.current = updatedUser;
+      setUser(updatedUser);
+      setProfilePhoto(result.photoUrl);
+      showToast(result.cleanupFailed
+        ? 'บันทึกรูปโปรไฟล์แล้ว แต่ลบไฟล์รูปเก่าไม่สำเร็จ'
+        : photo ? 'บันทึกรูปโปรไฟล์ใน Supabase แล้ว' : 'ลบรูปโปรไฟล์จาก Supabase แล้ว');
+      return true;
     }
     if (!user || !writeProfilePhoto(user.id, photo)) {
       showToast('บันทึกรูปไม่สำเร็จ · พื้นที่จัดเก็บในเบราว์เซอร์อาจไม่เพียงพอ');

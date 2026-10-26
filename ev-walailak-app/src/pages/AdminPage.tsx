@@ -21,6 +21,22 @@ interface AdminPageProps {
 }
 
 const filters: ('ทั้งหมด' | UserStatus)[] = ['ทั้งหมด', 'Pending', 'Approved', 'Rejected', 'Suspended'];
+const roles: UserRole[] = ['Student', 'Employee', 'Manager', 'Admin'];
+const demoAccounts: ManagedAccount[] = initialAccounts.map((account: AccountRecord) => ({
+  id: account.id,
+  email: account.email,
+  fullName: account.name,
+  phone: '',
+  department: '',
+  requestedRole: account.role === 'Employee' ? 'Employee' : 'Student',
+  role: account.role,
+  createdAt: '',
+  updatedAt: '',
+  status: account.status,
+  statusReason: '',
+  drivingPermission: false,
+  inductionConfirmed: false,
+}));
 
 export default function AdminPage({ state, user, onUpdate, onShowToast, onOpenUtility }: AdminPageProps) {
   const [filter, setFilter] = useState<(typeof filters)[number]>('ทั้งหมด');
@@ -126,6 +142,7 @@ export default function AdminPage({ state, user, onUpdate, onShowToast, onOpenUt
           <section className="permission-note"><div className="heading-with-icon"><ShieldCheck size={17} /><h2>ขอบเขตสิทธิ์ผู้ดูแล</h2></div><p>การเปลี่ยนบัญชีตัวอย่าง, Driving Permission และการเปิดบริการไม่เปลี่ยนบัญชี Supabase จริง ไม่ส่งคำสั่งไปยังรถ</p></section>
         </aside>
       </div>
+      <AdminPortalPanels isDemo={isDemo} pendingAccountCount={!isDemo && listState === 'ready' ? pendingCount : null} onShowToast={onShowToast} />
     </>
   );
 }

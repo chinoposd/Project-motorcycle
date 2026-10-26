@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRight, BookOpen, Check, ClipboardList, Clock3, FileText, ShieldCheck } from 'lucide-react';
 import CampusMap from '../components/CampusMap';
 import PageHeader from '../components/PageHeader';
