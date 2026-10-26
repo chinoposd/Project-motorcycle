@@ -14,6 +14,7 @@ interface AppShellProps {
   authSource: 'demo' | 'supabase';
   page: PageId;
   breadcrumbLabel?: string;
+  breadcrumbParent?: { label: string; onNavigate: () => void };
   profilePhoto: string | null;
   onNavigate: (page: PageId) => void;
   onLogout: () => void;
@@ -29,7 +30,7 @@ const roleLabels = {
   Admin: 'ผู้ดูแลระบบ',
 } as const;
 
-export default function AppShell({ authSource, page, breadcrumbLabel, profilePhoto, onNavigate, onLogout, onOpenUtility, user, children }: AppShellProps) {
+export default function AppShell({ authSource, page, breadcrumbLabel, breadcrumbParent, profilePhoto, onNavigate, onLogout, onOpenUtility, user, children }: AppShellProps) {
   const identity = { initial: user.name.slice(0, 1), label: `${user.name} · ${roleLabels[user.role]}` };
   const profilePage: PageId = user.role === 'Manager' ? 'manager-profile' : 'profile-settings';
   const visibleNavItems = navItems.filter(({ id }) => isPageAllowed(user.role, id));
@@ -95,7 +96,10 @@ export default function AppShell({ authSource, page, breadcrumbLabel, profilePho
       <main className="main-content">
         <nav className="breadcrumbs" aria-label="เส้นทางนำทาง">
           <ol>
-            {breadcrumbItems.map((item, index) => (
+            {breadcrumbParent ? <>
+              <li><button className="breadcrumb-link" type="button" onClick={breadcrumbParent.onNavigate}>{breadcrumbParent.label}</button></li>
+              <li><ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true" /><span className="breadcrumb-current" aria-current="page">{breadcrumbLabel ?? pageLabels[page]}</span></li>
+            </> : breadcrumbItems.map((item, index) => (
               <li key={`${item.page ?? 'current'}-${item.label}`}>
                 {index > 0 && <ChevronRight className="breadcrumb-separator" size={14} aria-hidden="true" />}
                 {item.page ? (

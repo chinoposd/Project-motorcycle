@@ -200,7 +200,10 @@ export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: L
           <button
             className="login-register-button"
             type="button"
-            onClick={openRegister}
+            onClick={() => {
+              setIsRegisterOpen(true);
+              setError('');
+            }}
           >
             <UserPlus size={17} aria-hidden="true" />
             <span>ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก</span>
