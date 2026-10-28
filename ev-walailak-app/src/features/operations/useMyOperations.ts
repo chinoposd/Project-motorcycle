@@ -15,7 +15,7 @@ export function useMyOperations(userId:string|null,enabled:boolean,onShowToast:(
     setState({userId,data:response.data,error:response.error??'',loading:false});
   },[enabled,userId]);
   useEffect(()=>{void refresh();return()=>{epoch.current++;};},[refresh]);
-  useEffect(()=>{if(!enabled||!userId)return;const refreshVisible=()=>{if(document.visibilityState==='visible')void refresh();};const timer=window.setInterval(refreshVisible,15000);window.addEventListener('focus',refreshVisible);return()=>{window.clearInterval(timer);window.removeEventListener('focus',refreshVisible);};},[enabled,userId,refresh]);
+  useEffect(()=>{if(!enabled||!userId)return;const refreshVisible=()=>{if(document.visibilityState==='visible')void refresh();};const timer=window.setInterval(refreshVisible,5000);window.addEventListener('focus',refreshVisible);return()=>{window.clearInterval(timer);window.removeEventListener('focus',refreshVisible);};},[enabled,userId,refresh]);
   async function mutate(operation:()=>Promise<{error:string|null}>,success:string):Promise<boolean>{
     if(!enabled||!userId||busy)return false;
     const actor=userId;setBusyActor(actor);const response=await operation();

@@ -977,6 +977,21 @@ svg { flex: none; }
 .ops-check input { margin-top: 4px; flex-shrink: 0; width: 16px; height: 16px; }
 .ops-form .button { justify-self: start; }
 .ops-empty { padding: 22px 14px; border: 1px dashed #d3deec; border-radius: 10px; background: #f8faff; color: #71819a; text-align: center; }
+.ops-live-map { margin: 18px 0; min-width: 0; }
+.ops-live-map-plot { display: block; width: 100%; height: auto; border: 1px solid #d3deec; border-radius: 12px; }
+.ops-live-map figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 14px; margin-top: 10px; color: #526985; font-size: 12px; }
+.ops-map-status { display: inline-flex; padding: 5px 9px; border-radius: 7px; font-weight: 700; }
+.ops-map-status-live { color: #18714c; background: #e5f6ed; }
+.ops-map-status-stale { color: #845c20; background: #fff0d7; }
+.ops-map-status-last-known { color: #526985; background: #ebf1f8; }
+.ops-live-map .ops-warning { margin-top: 12px; }
+.ops-live-map-empty { display: grid; gap: 5px; margin: 18px 0; padding: 24px; border: 1px dashed #bfcfe3; border-radius: 12px; color: #526985; background: #f7faff; text-align: center; }
+.ops-live-map-empty strong { color: #17375e; }
+.ops-live-map-empty span { font-size: 12px; }
+.ops-map-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 12px; }
+.ops-map-legend span::before { content: ''; display: inline-block; width: 15px; height: 10px; margin-right: 6px; border: 2px dashed currentColor; border-radius: 2px; }
+.ops-map-legend-main { color: #2563eb; }
+.ops-map-legend-return { color: #0b9876; }
 .ops-record { margin-top: 13px; padding: 16px; border: 1px solid #dce6f3; background: #fbfdff; border-radius: 10px; overflow-wrap: anywhere; }
 .ops-record > summary { font-weight: 600; cursor: pointer; color: #254666; line-height: 1.7; }
 .ops-record[open] > summary { margin-bottom: 15px; }
