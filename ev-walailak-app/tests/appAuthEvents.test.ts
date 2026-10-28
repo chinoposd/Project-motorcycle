@@ -25,7 +25,7 @@ const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 // Execute App's actual registered auth callback. Only React's hook scheduler and
 // cloud I/O are replaced; routing, identity policy, and request epochs stay real.
-async function mountApp(initialEvent?: { event: string; id: string }) {
+async function mountApp(initialEvent?: { event: string; id: string }, initialPath = '/LoginPage') {
   const slots: unknown[] = [];
   let cursor = 0;
   let mounted = false;
@@ -33,6 +33,30 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
   const cleanups: (() => void)[] = [];
   const requests: { resolve: (value: SupabaseAuthResult) => void; reject: (error: Error) => void }[] = [];
   let listener: (event: string, session: { user: { id: string } } | null) => void;
+  const location = { href: `http://localhost${initialPath}`, pathname: initialPath, search: '', hash: '' };
+  let popstateListener: ((event: {state: unknown}) => void) | null = null;
+  const updateLocation = (url?: string) => {
+    if (!url) return;
+    const nextUrl = new URL(url, location.href);
+    location.href = nextUrl.href;
+    location.pathname = nextUrl.pathname;
+    location.search = nextUrl.search;
+    location.hash = nextUrl.hash;
+  };
+  const history = {
+    state: null as unknown,
+    replaceState(state: unknown, _title: string, url?: string) {
+      this.state = state;
+      updateLocation(url);
+    },
+    pushState(state: unknown, _title: string, url?: string) {
+      this.state = state;
+      updateLocation(url);
+    },
+  };
+  let lazyIndex=0;
+  const lazyNames=['AdminPage','ApprovalStatusPage','LoginPage','ManagerPage','ManagerProfilePage','ProfileSettingsPage','OverviewPage','RidePage','LiveUserPage','ManagerOperationsPage'];
+  const emptyOperations={data:null,error:'',loading:false,busy:false,refresh:async()=>undefined,run:async()=>false,requestSession:async()=>false,sessionAction:async()=>false};
   const modules: Record<string, unknown> = {
     './auth/accountAccess': accountAccess,
     './auth/authRequestEpoch': authRequestEpoch,
@@ -41,6 +65,21 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
     './auth/managerProfile': managerProfile,
     './auth/userProfile': userProfile,
     './auth/profilePhoto': profilePhoto,
+    './data/prototypeState': {
+      PROTOTYPE_STORAGE_KEY: 'ev-walailak-prototype-state:v1',
+      readPrototypeState: () => ({ session: null, alerts: [], issues: [], trips: [] }),
+      readLatestPrototypeState: (state: unknown) => state,
+      expirePrototypeReservation: (state: unknown) => state,
+      writePrototypeState: () => true,
+    },
+    './auth/supabaseProfile': {
+      createSupabaseProfilePhotoUrl: async () => null,
+      saveSupabaseProfilePhoto: async () => ({ ok: false, message: 'not called in auth event tests' }),
+      updateSupabaseProfile: async () => ({ ok: false, message: 'not called in auth event tests' }),
+    },
+    './features/operations/client': {bangkokDay:()=> '2026-10-26'},
+    './features/operations/useMyOperations': {useMyOperations:()=>emptyOperations},
+    './features/operations/useOperations': {useOperations:()=>emptyOperations},
     './data/mockData': { initialAlerts: [] },
     './auth/supabaseClient': {
       supabaseConfig: { mode: 'configured' },
@@ -55,6 +94,8 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
       signOutSupabase: async () => undefined,
     },
     react: {
+      lazy:()=>lazyNames[lazyIndex++],
+      Suspense:'Suspense',
       useState(initial: unknown) {
         const index = cursor++;
         if (!mounted) slots[index] = typeof initial === 'function' ? initial() : initial;
@@ -71,8 +112,8 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
       useEffect: (effect: () => void | (() => void)) => { if (!mounted) effects.push(effect); },
     },
     'react/jsx-runtime': {
-      jsx: (type: string, props: Record<string, unknown>) => ({ type, props }),
-      jsxs: (type: string, props: Record<string, unknown>) => ({ type, props }),
+      jsx: (type: string, props: Record<string, unknown>) => type === 'Suspense' ? props.children : ({ type, props }),
+      jsxs: (type: string, props: Record<string, unknown>) => type === 'Suspense' ? props.children : ({ type, props }),
     },
   };
   const exports: { default?: () => { type: string; props: Record<string, any> } } = {};
@@ -82,9 +123,14 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
   await runInNewContext(`(async () => { ${transformedModule!.code} })()`, {
     __vite_ssr_exports__: exports,
     __vite_ssr_exportName__: (name: string, getter: () => unknown) => Object.defineProperty(exports, name, { get: getter }),
-    queueMicrotask, async __vite_ssr_import__(id: string) {
+    queueMicrotask,
+    URL,
+    URLSearchParams,
+    window: { location, history, addEventListener(name: string, handler: (event: {state: unknown}) => void) { if (name === 'popstate') popstateListener = handler; }, removeEventListener() {}, setTimeout, clearTimeout,
+      setInterval: () => 0, clearInterval() {} },
+    async __vite_ssr_import__(id: string) {
     if (id in modules) return modules[id];
-    if (id.startsWith('./pages/') || id.startsWith('./components/')) return { default: id.split('/').at(-1) };
+    if (id.startsWith('./pages/') || id.startsWith('./components/') || id.startsWith('./features/operations/')) return { default: id.split('/').at(-1) };
     throw new Error(`Uninjected App dependency: ${id}`);
   } });
   const screen = () => { cursor = 0; return exports.default!(); };
@@ -95,11 +141,20 @@ async function mountApp(initialEvent?: { event: string; id: string }) {
     if (cleanup) cleanups.push(cleanup);
   }
   return {
-    requests, screen,
+    requests, screen, location, hasPopstateListener: () => popstateListener !== null,
     event: (event: string, id: string | null) => listener(event, id ? { user: { id } } : null),
     unmount: () => cleanups.forEach((cleanup) => cleanup()),
   };
 }
+
+test('direct unauthenticated auth routes remain intact and install app history handling', async () => {
+  for (const route of ['/RegisterPage', '/ForgotPassword']) {
+    const app = await mountApp(undefined, route);
+    assert.equal(app.location.pathname, route);
+    assert.equal(app.hasPopstateListener(), true);
+    app.unmount();
+  }
+});
 
 test('TOKEN_REFRESHED supersedes an older profile request and the latest profile wins', async () => {
   const app = await mountApp();

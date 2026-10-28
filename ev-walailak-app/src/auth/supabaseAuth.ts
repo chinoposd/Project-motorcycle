@@ -1,5 +1,8 @@
 import type { User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { isApplicantRole, parseSupabaseProfile } from './accountAccess';
+import { isValidAuthEmail, normalizeAuthEmail } from './emailAddress';
+import { isValidAuthPassword } from './passwordPolicy';
+import { requestPasswordReset, type PasswordResetResult } from './passwordResetRequest';
 import { supabase } from './supabaseClient';
 import type { DemoUser } from './demoAuth';
 
@@ -51,12 +54,10 @@ export async function signInWithSupabase(email: string, password: string): Promi
 export async function signUpWithSupabase(input: SupabaseRegistration): Promise<SupabaseAuthResult> {
   if (!supabase) return { user: null, error: 'not-configured' };
   const name = input.name.trim();
-  const email = input.email.trim().toLowerCase();
+  const email = normalizeAuthEmail(input.email);
   const phone = input.phone?.trim() ?? '';
-  if (!name || name.length > 80 || !phone || phone.length > 32 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-    || input.password.length < 9 || input.password.length > 256
-    || !/[a-z]/.test(input.password) || !/[A-Z]/.test(input.password)
-    || !/\d/.test(input.password) || !/[\p{P}\p{S}]/u.test(input.password)
+  if (!name || name.length > 80 || !phone || phone.length > 32 || !isValidAuthEmail(email)
+    || !isValidAuthPassword(input.password)
     || !isApplicantRole(input.requestedRole)) {
     return { user: null, error: 'invalid-registration' };
   }
@@ -93,22 +94,24 @@ export async function signOutSupabase(): Promise<void> {
 }
 
 export async function sendPasswordResetEmail(email: string): Promise<SupabaseAuthError | null> {
-  if (!supabase) return 'not-configured';
-  const normalizedEmail = email.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return 'invalid-registration';
-  const redirectTo = `${window.location.origin}/?recovery=1`;
-  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
-  return error ? 'password-reset-failed' : null;
+  const result = await sendSupabasePasswordReset(email);
+  if (result.ok) return null;
+  return result.reason === 'invalid-email' ? 'invalid-registration'
+    : result.reason === 'not-configured' ? 'not-configured' : 'password-reset-failed';
 }
 
-export async function sendSupabasePasswordReset(email: string): Promise<{ ok: boolean }> {
-  return { ok: (await sendPasswordResetEmail(email)) === null };
+export async function sendSupabasePasswordReset(email: string): Promise<PasswordResetResult> {
+  const client = supabase;
+  return requestPasswordReset(
+    email,
+    `${window.location.origin}/?recovery=1`,
+    client ? (normalizedEmail, options) => client.auth.resetPasswordForEmail(normalizedEmail, options) : null,
+  );
 }
 
 export async function updateSupabasePassword(password: string): Promise<SupabaseAuthError | null> {
   if (!supabase) return 'not-configured';
-  if (password.length < 9 || password.length > 256 || !/[a-z]/.test(password) || !/[A-Z]/.test(password)
-    || !/\d/.test(password) || !/[\p{P}\p{S}]/u.test(password)) return 'invalid-registration';
+  if (!isValidAuthPassword(password)) return 'invalid-registration';
   const { error } = await supabase.auth.updateUser({ password });
   return error ? 'password-reset-failed' : null;
 }

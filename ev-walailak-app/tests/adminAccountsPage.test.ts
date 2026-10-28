@@ -16,7 +16,7 @@ test('Admin all-accounts view exposes every status and keeps demo data read-only
       assert.match(html, new RegExp(status));
     }
     assert.match(html, /kamonchanok@example.edu/);
-    assert.match(html, /rejected@example.edu/);
+    assert.match(html, /thana@example.edu/);
     assert.match(html, /ข้อมูลตัวอย่าง · อ่านได้อย่างเดียว/);
 
     const { default: ApprovalStatusPage } = await vite.ssrLoadModule('/src/pages/ApprovalStatusPage.tsx');

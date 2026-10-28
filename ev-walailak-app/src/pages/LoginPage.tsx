@@ -35,8 +35,8 @@ const roleIcons: Record<UserRole, typeof GraduationCap> = {
 };
 
 export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: LoginPageProps) {
-  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [isRecoveryOpen, setIsRecoveryOpen] = useState(() => window.location.pathname === '/ForgotPassword');
+  const [isRegisterOpen, setIsRegisterOpen] = useState(() => typeof window !== 'undefined' && window.location.pathname === '/RegisterPage');
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(() => typeof window !== 'undefined' && window.location.pathname === '/ForgotPassword');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -45,11 +45,12 @@ export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: L
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    function syncRecoveryRoute() {
+    function syncAuthRoute() {
       setIsRecoveryOpen(window.location.pathname === '/ForgotPassword');
+      setIsRegisterOpen(window.location.pathname === '/RegisterPage');
     }
-    window.addEventListener('popstate', syncRecoveryRoute);
-    return () => window.removeEventListener('popstate', syncRecoveryRoute);
+    window.addEventListener('popstate', syncAuthRoute);
+    return () => window.removeEventListener('popstate', syncAuthRoute);
   }, []);
 
   function openRecoveryPage() {
@@ -65,6 +66,21 @@ export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: L
     setIsRecoveryOpen(false);
   }
 
+  function openRegisterPage() {
+    if (window.location.pathname !== '/RegisterPage') {
+      window.history.pushState({ authPage: 'register' }, '', '/RegisterPage');
+    }
+    setIsRegisterOpen(true);
+    setError('');
+  }
+
+  function closeRegisterPage() {
+    if (window.location.pathname === '/RegisterPage') {
+      window.history.replaceState({}, '', `/LoginPage${window.location.search}${window.location.hash}`);
+    }
+    setIsRegisterOpen(false);
+  }
+
   function handleShortcut(role: UserRole) {
     const credentials = getDemoCredentials(role);
     setEmail(credentials.email);
@@ -78,6 +94,15 @@ export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: L
     setError('');
     setIsSubmitting(true);
     try {
+      if (selectedRole) {
+        const selectedDemo = getDemoCredentials(selectedRole);
+        if (email === selectedDemo.email && password === selectedDemo.password) {
+          const selectedUser = await authenticateUser(email, password);
+          if (selectedUser) onLogin({ ...selectedUser, authSource: 'demo' });
+          else setError('บัญชีทดลองนี้ไม่พร้อมใช้งาน');
+          return;
+        }
+      }
       const demoUser = await authenticateUser(email, password);
       if (demoUser) {
         onLogin({ ...demoUser, authSource: 'demo' });
@@ -200,10 +225,7 @@ export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: L
           <button
             className="login-register-button"
             type="button"
-            onClick={() => {
-              setIsRegisterOpen(true);
-              setError('');
-            }}
+            onClick={openRegisterPage}
           >
             <UserPlus size={17} aria-hidden="true" />
             <span>ยังไม่มีบัญชีใช่ไหม? สมัครสมาชิก</span>
@@ -234,7 +256,7 @@ export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: L
           <p className="login-disclosure"><LockKeyhole size={14} aria-hidden="true" /><span>บัญชีทดลองบันทึกเฉพาะเบราว์เซอร์นี้ · ไม่ใช่ระบบยืนยันตัวตนจริง</span></p>
         </section>
       </main>
-      {isRegisterOpen && <RegisterPage onClose={() => setIsRegisterOpen(false)} onLogin={onLogin} />}
+      {isRegisterOpen && <RegisterPage onClose={closeRegisterPage} onLogin={onLogin} />}
     </div>
   );
 }

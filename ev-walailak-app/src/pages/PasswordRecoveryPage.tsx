@@ -1,22 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, BadgeCheck, Bike, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { isDemoAccountEmail } from '../auth/demoAuth';
-import { sendPasswordResetEmail, updateSupabasePassword } from '../auth/supabaseAuth';
-import { supabaseConfig } from '../auth/supabaseClient';
+import { isValidAuthEmail } from '../auth/emailAddress';
+import { isValidAuthPassword } from '../auth/passwordPolicy';
+import { getPasswordResetFeedback } from '../auth/passwordResetFeedback';
+import { sendSupabasePasswordReset, updateSupabasePassword } from '../auth/supabaseAuth';
 
 interface PasswordRecoveryPageProps {
   mode: 'request' | 'update';
   onClose: () => void;
   onPasswordUpdated: () => void;
 }
-
-const passwordRules = [
-  (value: string) => value.length >= 9,
-  (value: string) => /[a-z]/.test(value),
-  (value: string) => /[A-Z]/.test(value),
-  (value: string) => /\d/.test(value),
-  (value: string) => /[\p{P}\p{S}]/u.test(value),
-];
 
 export default function PasswordRecoveryPage({ mode, onClose, onPasswordUpdated }: PasswordRecoveryPageProps) {
   const [email, setEmail] = useState('');
@@ -47,7 +41,7 @@ export default function PasswordRecoveryPage({ mode, onClose, onPasswordUpdated 
     setIsSubmitting(true);
     try {
       if (mode === 'request') {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        if (!isValidAuthEmail(email)) {
           setError('กรุณากรอกอีเมลให้ถูกต้อง');
           return;
         }
@@ -55,20 +49,16 @@ export default function PasswordRecoveryPage({ mode, onClose, onPasswordUpdated 
           setMessage('บัญชีทดลองไม่มีการส่งอีเมลกู้รหัสผ่าน · ใช้รหัสผ่านเดิมของบัญชีทดลอง');
           return;
         }
-        if (supabaseConfig.mode !== 'configured') {
-          setMessage('ยังไม่ได้เชื่อม Supabase Auth · ไม่มีการส่งอีเมลจริง');
+        const feedback = getPasswordResetFeedback(await sendSupabasePasswordReset(email));
+        if (feedback.tone === 'error') {
+          setError(feedback.message);
           return;
         }
-        const result = await sendPasswordResetEmail(email);
-        if (result) {
-          setError(result === 'invalid-registration' ? 'กรุณาตรวจสอบอีเมล' : 'ส่งคำขอไม่สำเร็จ · ตรวจสอบการเชื่อมต่อ Supabase แล้วลองอีกครั้ง');
-          return;
-        }
-        setMessage('ส่งคำขอแล้ว · หากอีเมลนี้มีบัญชีในระบบ จะได้รับลิงก์สำหรับตั้งรหัสผ่านใหม่');
+        setMessage(feedback.message);
         return;
       }
 
-      if (!passwordRules.every((rule) => rule(password))) {
+      if (!isValidAuthPassword(password)) {
         setError('รหัสผ่านต้องครบทั้ง 9 ตัวอักษร ตัวพิมพ์เล็ก/ใหญ่ ตัวเลข และอักขระพิเศษ');
         return;
       }

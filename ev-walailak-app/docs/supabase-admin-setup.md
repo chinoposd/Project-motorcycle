@@ -1,10 +1,16 @@
-# Supabase Admin account review setup
+# Supabase Admin setup and deployment state (26 October 2026)
+
+The connected project `rmgycwhlzhyenugacbke` now has the original Admin migrations and **all seven Adminx3 SQL migrations** in migration history: `20261026071717_adminx3_foundation.sql`, `20261026071906_adminx3_sessions.sql`, `20261026073434_adminx3_workflows.sql`, `20261026084638_adminx3_user_state.sql`, `20261026085013_adminx3_admin_only_exceptions.sql`, `20261026162000_adminx3_review_fixes.sql`, and `20261026163000_adminx3_privacy_audit_coverage.sql`. The SQL tests passed in isolated PostgreSQL, and hosted checks found all seven history entries, the original six profiles intact, RLS on the operations tables, and no direct browser table or ingest privilege. The source was merged from `Adminx3` into local `develop`; the web bundle and Edge Functions have **not** been deployed. See `docs/adminx3-integration.md` before enabling vehicle or privacy jobs.
+
+The following numbered sections document the earlier Admin account setup. Statements below about Session enforcement, alerts and privacy deletion describe the **older Adminx2 state** and are superseded by `docs/admin-requirements-audit.md` and `docs/adminx3-integration.md`.
+
+## Earlier Admin account setup
 
 The Admin account review page uses database RPCs to list and decide Pending accounts. Apply the migration and provision at least one trusted Admin account before using that page against the live Supabase project.
 
 ## 1. Apply the migration
 
-Confirm the project selected in the Supabase Dashboard is the intended project. Open **SQL Editor**, create a new query, paste the complete contents of `supabase/migrations/20261024130000_admin_account_review.sql`, review it, and run it. This migration creates the append-only review audit table and two Admin-only RPCs. It does not change existing accounts or send email.
+Confirm the project selected in the Supabase Dashboard is the intended project. Open **SQL Editor**, create a new query, paste the complete contents of `supabase/migrations/20261024100057_admin_account_review.sql`, review it, and run it. This migration creates the append-only review audit table and two Admin-only RPCs. It does not change existing accounts or send email.
 
 Alternatively, if the Supabase CLI is already linked to the intended project, run `npx supabase db push` from `ev-walailak-app` and review the pending migration list before confirming.
 
