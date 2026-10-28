@@ -980,6 +980,8 @@ svg { flex: none; }
 .ops-live-map { margin: 18px 0; min-width: 0; }
 .ops-live-map-plot { display: block; width: 100%; height: auto; border: 1px solid #d3deec; border-radius: 12px; }
 .ops-live-map figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 14px; margin-top: 10px; color: #526985; font-size: 12px; }
+.ops-street-view-action { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
+.ops-street-view-action small { color: #627994; }
 .ops-map-status { display: inline-flex; padding: 5px 9px; border-radius: 7px; font-weight: 700; }
 .ops-map-status-live { color: #18714c; background: #e5f6ed; }
 .ops-map-status-stale { color: #845c20; background: #fff0d7; }

@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react';
 import {displayTime} from './client';
 import type {Zone} from './types';
 import {vehicleMapState,type VehicleMapFix} from './vehicleMapState';
+import {streetViewUrl} from './streetViewUrl';
 
 type Point=[number,number];
 const validPoint=([longitude,latitude]:Point)=>Number.isFinite(latitude)&&Number.isFinite(longitude)&&Math.abs(latitude)<=90&&Math.abs(longitude)<=180;
@@ -22,6 +23,7 @@ export default function VehicleLiveMap({fix,zones=[],title='ตำแหน่�
   const x=(longitude:number)=>(longitude-west)*scaleX;
   const y=(latitude:number)=>(north-latitude)*scaleY;
   const label=state.kind==='live'?'พิกัดจากรถล่าสุด':state.kind==='stale'?'พิกัดเก่าหรือไม่ยืนยัน · ไม่ใช่ตำแหน่งสด':'พิกัดล่าสุด · ไม่มี Session ที่กำลังขับ';
+  const streetViewLink=streetViewUrl(state.latitude,state.longitude);
   return <figure className="ops-live-map">
     <svg viewBox="0 0 560 300" role="img" aria-label={title} className="ops-live-map-plot">
       <rect width="560" height="300" fill="#eef4fc"/>
@@ -33,6 +35,7 @@ export default function VehicleLiveMap({fix,zones=[],title='ตำแหน่�
       <text x="12" y="22" fill="#536b88" fontSize="11">N ↑ · พิกัด GPS</text>
     </svg>
     <figcaption><span className={`ops-map-status ops-map-status-${state.kind}`}>{label}</span><span>GPS {displayTime(state.gpsAt)}</span><span>{state.latitude.toFixed(6)}, {state.longitude.toFixed(6)}</span></figcaption>
+    {streetViewLink&&<div className="ops-street-view-action"><a className="button button-outline" href={streetViewLink} target="_blank" rel="noopener noreferrer">เปิด Street View จากพิกัดนี้</a><small>เมื่อกด จะส่งพิกัดนี้ไป Google · ภาพถนนไม่ใช่ภาพสดจากรถ และบางจุดอาจไม่มีภาพ</small></div>}
     {!!visibleZones.length&&<p className="ops-map-legend">{visibleZones.map(zone=><span key={zone.kind} className={`ops-map-legend-${zone.kind}`}>{zone.kind==='main'?'Main Geofence':'Return Zone'}</span>)}</p>}
     {state.kind==='stale'&&<p className="ops-warning">ไม่สามารถรับข้อมูลล่าสุดจากรถได้ · ตรวจสอบเวลาพิกัดก่อนตัดสินใจ</p>}
   </figure>;

@@ -1,4 +1,7 @@
 import { Bike, LocateFixed, MapPin, Minus, Plus } from 'lucide-react';
+import {streetViewUrl} from '../features/operations/streetViewUrl';
+
+const demoStreetView=streetViewUrl(8.6416,99.89747);
 
 interface CampusMapProps {
   manager?: boolean;
@@ -48,6 +51,7 @@ export default function CampusMap({ manager = false }: CampusMapProps) {
         <div className="map-toolbar" aria-hidden="true"><span><Plus size={15} /></span><span><Minus size={15} /></span><span><LocateFixed size={15} /></span></div>
         <div className="map-timestamp"><Bike size={13} aria-hidden="true" /> GPS ล่าสุด {manager ? '10:42:16' : '10:42:16'} · แผนที่จำลอง</div>
       </div>
+      {demoStreetView&&<div className="ops-street-view-action"><a className="button button-outline" href={demoStreetView} target="_blank" rel="noopener noreferrer">เปิด Street View พิกัดตัวอย่าง</a><small>ตำแหน่งตัวอย่างในมหาวิทยาลัย ไม่ใช่ GPS ของ EV-01 · เมื่อกดจะเปิด Google</small></div>}
     </section>
   );
 }
