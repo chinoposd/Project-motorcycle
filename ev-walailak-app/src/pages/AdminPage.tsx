@@ -201,8 +201,8 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
 
   return (
     <>
-      <PageHeader title="จัดการระบบ" description="บัญชีทั้งหมดและเครื่องมือผู้ดูแล" badge="Admin" />
-      <AdminWorkspace isDemo={isDemo} onShowToast={onShowToast} onChanged={()=>{void loadAccounts();setAdminRevision(value=>value+1);}} accounts={<div className="dashboard-grid admin-grid">
+      <PageHeader title="จัดการระบบ" description="ตรวจบัญชี ดูแลรถและบริการ จัดการคำขอข้อมูล และตั้งค่าระบบ" badge="Admin" />
+      <AdminWorkspace isDemo={isDemo} pendingAccountCount={!isDemo&&listState==='ready'?pendingCount:null} onShowToast={onShowToast} onChanged={()=>{void loadAccounts();setAdminRevision(value=>value+1);}} accounts={<div className="dashboard-grid admin-grid">
         <section className="panel admin-users-panel" id="admin-accounts">
           <div className="panel-heading">
             <div>
@@ -316,3 +316,4 @@ export default function AdminPage({ authSource, currentAdminId, onShowToast }: A
     </>
   );
 }
+

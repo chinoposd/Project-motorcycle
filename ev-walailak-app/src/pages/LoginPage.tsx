@@ -76,6 +76,11 @@ export default function LoginPage({ onLogin, onPasswordUpdated, notice = '' }: L
 
   function closeRegisterPage() {
     if (window.location.pathname === '/RegisterPage') {
+      const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+      if (returnTo === '/' || returnTo === '/Welcome') {
+        window.location.replace(returnTo);
+        return;
+      }
       window.history.replaceState({}, '', `/LoginPage${window.location.search}${window.location.hash}`);
     }
     setIsRegisterOpen(false);

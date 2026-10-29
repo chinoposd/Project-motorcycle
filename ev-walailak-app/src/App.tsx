@@ -36,6 +36,7 @@ import AnnouncementPopup from './components/AnnouncementPopup';
 import EndSessionDialog from './components/EndSessionDialog';
 import PreflightDialog from './components/PreflightDialog';
 import PasswordRecoveryPage from './pages/PasswordRecoveryPage';
+import LandingPage from './pages/LandingPage';
 import UtilityViewPage from './pages/UtilityViewPage';
 import {bangkokDay} from './features/operations/client';
 import {useMyOperations} from './features/operations/useMyOperations';
@@ -43,10 +44,54 @@ import {useOperations} from './features/operations/useOperations';
 import type { ManagerView, PageId, SessionStatus, UtilityView } from './types';
 
 const APP_HISTORY_STATE_KEY = '__evWalailakApp';
+const APP_HISTORY_SENTINEL_KEY = '__evWalailakHistoryBoundary';
+const APP_HISTORY_ENTRY_KEY = '__evWalailakHistoryEntry';
+const UTILITY_VIEWS: readonly UtilityView[] = ['help', 'guide', 'announcements', 'trip-history', 'issue-report', 'inspection', 'audit-log', 'privacy-request'];
+const ALLOWED_UTILITY_VIEWS: Record<DemoUser['role'], readonly UtilityView[]> = {
+  Student: ['help', 'guide', 'announcements', 'trip-history', 'issue-report', 'privacy-request'],
+  Employee: ['help', 'guide', 'announcements', 'trip-history', 'issue-report', 'privacy-request'],
+  Manager: ['help', 'guide', 'announcements', 'trip-history', 'issue-report', 'inspection'],
+  Admin: ['help', 'guide', 'announcements', 'inspection', 'audit-log', 'privacy-request'],
+};
+
+function ensureHistoryBoundary() {
+  if (typeof window === 'undefined') return;
+  const bootstrapWindow = window as Window & { __evWalailakHistoryBootstrapped?: boolean };
+  if (bootstrapWindow.__evWalailakHistoryBootstrapped) return;
+  bootstrapWindow.__evWalailakHistoryBootstrapped = true;
+
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const existingState = window.history.state;
+  const appEntryState = existingState && typeof existingState === 'object' && !Array.isArray(existingState)
+    && (existingState as Record<string, unknown>)[APP_HISTORY_SENTINEL_KEY] !== true
+    ? existingState
+    : { [APP_HISTORY_ENTRY_KEY]: true };
+
+  // Re-seed on every document load, even when the current state already has
+  // an app marker. That marker alone does not prove a boundary exists behind it.
+  window.history.replaceState({ [APP_HISTORY_SENTINEL_KEY]: true }, '', currentUrl);
+  window.history.pushState(appEntryState, '', currentUrl);
+}
+
+// Install the boundary before React renders so the first Back cannot leave the app.
+ensureHistoryBoundary();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', (event) => {
+    const state = event.state as Record<string, unknown> | null;
+    if (state?.[APP_HISTORY_SENTINEL_KEY] !== true) return;
+    event.stopImmediatePropagation();
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.history.pushState({ [APP_HISTORY_ENTRY_KEY]: true }, '', currentUrl);
+  });
+}
 
 interface AppHistoryState {
   page: PageId;
   managerView: ManagerView;
+  utilityView: UtilityView | null;
+  utilityEntry: boolean;
+  historyIndex: number;
 }
 
 const APP_PAGE_PATHS: Record<PageId, string> = {
@@ -72,22 +117,41 @@ function getPathForAppState(page: PageId, managerView: ManagerView): string {
   return page === 'manager' && managerView === 'ride' ? '/ManagerRidePage' : APP_PAGE_PATHS[page];
 }
 
+function getUtilityViewFromUrl(): UtilityView | null {
+  const view = new URLSearchParams(window.location.search).get('view');
+  return UTILITY_VIEWS.includes(view as UtilityView) ? view as UtilityView : null;
+}
+
+function getUrlForAppState(page: PageId, managerView: ManagerView, utilityView: UtilityView | null = null): string {
+  const path = getPathForAppState(page, managerView);
+  return utilityView ? `${path}?view=${encodeURIComponent(utilityView)}` : path;
+}
+
 function readAppHistoryState(state: unknown): AppHistoryState | null {
   if (!state || typeof state !== 'object') return null;
   const appState = (state as Record<string, unknown>)[APP_HISTORY_STATE_KEY];
   if (!appState || typeof appState !== 'object') return null;
   const { page, managerView } = appState as Record<string, unknown>;
   const validPages: PageId[] = ['home', 'ride', 'manager', 'manager-profile', 'profile-settings', 'admin'];
+  const utilityView = (appState as Record<string, unknown>).utilityView;
+  const storedIndex = (appState as Record<string, unknown>).historyIndex;
   if (!validPages.includes(page as PageId) || (managerView !== 'overview' && managerView !== 'ride')) return null;
-  return { page: page as PageId, managerView };
+  if (utilityView !== null && utilityView !== undefined && !UTILITY_VIEWS.includes(utilityView as UtilityView)) return null;
+  return {
+    page: page as PageId,
+    managerView,
+    utilityView: (utilityView as UtilityView | null) ?? null,
+    utilityEntry: (appState as Record<string, unknown>).utilityEntry === true,
+    historyIndex: typeof storedIndex === 'number' && Number.isInteger(storedIndex) && storedIndex >= 0 ? storedIndex : 0,
+  };
 }
 
-function makeHistoryState(page: PageId, managerView: ManagerView): Record<string, unknown> {
+function makeHistoryState(page: PageId, managerView: ManagerView, utilityView: UtilityView | null = null, utilityEntry = false, historyIndex = 0): Record<string, unknown> {
   const currentState = window.history.state;
   const baseState = currentState && typeof currentState === 'object' && !Array.isArray(currentState)
     ? currentState as Record<string, unknown>
     : {};
-  return { ...baseState, [APP_HISTORY_STATE_KEY]: { page, managerView } };
+  return { ...baseState, [APP_HISTORY_STATE_KEY]: { page, managerView, utilityView, utilityEntry, historyIndex } };
 }
 
 function isWithinServiceHours(start: string, end: string, now = new Date()): boolean {
@@ -110,6 +174,7 @@ const ManagerOperationsPage = lazy(() => import('./features/operations/ManagerOp
 const appPageFallback = <div className="page-loading" role="status" aria-live="polite">กำลังโหลดหน้า…</div>;
 
 export default function App() {
+  const [publicPath, setPublicPath] = useState(() => window.location.pathname);
   const [user, setUser] = useState<AppUser | null>(() => {
     const restored = readDemoSession();
     if (!restored) return null;
@@ -131,7 +196,10 @@ export default function App() {
     return user ? getLandingPage(user.role) : 'home';
   });
   const [managerView, setManagerView] = useState<ManagerView>(() => getManagerViewForPath(window.location.pathname));
-  const [utilityView, setUtilityView] = useState<UtilityView | null>(null);
+  const [utilityView, setUtilityView] = useState<UtilityView | null>(() => {
+    const requestedView = getUtilityViewFromUrl();
+    return user?.authSource === 'demo' && requestedView && ALLOWED_UTILITY_VIEWS[user.role].includes(requestedView) ? requestedView : null;
+  });
   const [isPreflightOpen, setIsPreflightOpen] = useState(false);
   const [isEndSessionOpen, setIsEndSessionOpen] = useState(false);
   const [passwordRecoveryMode, setPasswordRecoveryMode] = useState<'request' | 'update' | null>(
@@ -146,6 +214,11 @@ export default function App() {
   const [toast, setToast] = useState('');
   const currentUserRef = useRef(user);
   const currentPageRef = useRef(page);
+  const managerViewRef = useRef(managerView);
+  const utilityViewRef = useRef(utilityView);
+  const historyIndexRef = useRef(0);
+  managerViewRef.current = managerView;
+  utilityViewRef.current = utilityView;
   const authRequestEpochRef = useRef(new AuthRequestEpoch());
   const [profilePhoto, setProfilePhoto] = useState<string | null>(() => user ? readProfilePhoto(user.id) : null);
 
@@ -169,31 +242,66 @@ export default function App() {
   }
 
   useEffect(() => {
+    const syncPublicPath = () => setPublicPath(window.location.pathname);
+    window.addEventListener('popstate', syncPublicPath);
+    return () => window.removeEventListener('popstate', syncPublicPath);
+  }, []);
+
+  useEffect(() => {
+    if (window.location.pathname === '/Welcome' || (!user && window.location.pathname === '/')) return;
     const authRoute = ['/LoginPage', '/RegisterPage', '/ForgotPassword'].includes(window.location.pathname);
-    if (!passwordRecoveryMode && (user || !authRoute)) {
-      const initialUrl = user ? getPathForAppState(page, managerView) : '/LoginPage';
-      window.history.replaceState(makeHistoryState(page, managerView), '', initialUrl);
+    const currentState = window.history.state as Record<string, unknown> | null;
+    if (user && !readAppHistoryState(currentState)) {
+      const initialUrl = getUrlForAppState(page, managerView, utilityView);
+      window.history.replaceState(makeHistoryState(page, managerView, utilityView, false, 0), '', initialUrl);
+      historyIndexRef.current = 0;
+    } else if (!user && !currentState?.authPage) {
+      const initialUrl = authRoute ? `${window.location.pathname}${window.location.search}${window.location.hash}` : '/LoginPage';
+      window.history.replaceState({ [APP_HISTORY_ENTRY_KEY]: true, authPage: 'login' }, '', initialUrl);
     }
 
     function handlePopState(event: PopStateEvent) {
-      if (!currentUserRef.current) return;
+      if (!currentUserRef.current) {
+        if ((event.state as Record<string, unknown> | null)?.[APP_HISTORY_SENTINEL_KEY] === true) {
+          const isAuthRoute = ['/LoginPage', '/RegisterPage', '/ForgotPassword'].includes(window.location.pathname);
+          const currentUrl = isAuthRoute
+            ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+            : '/LoginPage';
+          window.history.pushState({ [APP_HISTORY_ENTRY_KEY]: true, authPage: 'login' }, '', currentUrl);
+        }
+        return;
+      }
       const appState = readAppHistoryState(event.state);
-      if (!appState) return;
+      if (!appState) {
+        const currentPage = currentPageRef.current;
+        const currentManagerView = managerViewRef.current;
+        const currentUtilityView = utilityViewRef.current;
+        window.history.pushState(
+          makeHistoryState(currentPage, currentManagerView, currentUtilityView, false, historyIndexRef.current),
+          '',
+          getUrlForAppState(currentPage, currentManagerView, currentUtilityView),
+        );
+        return;
+      }
       const activeUser = currentUserRef.current;
       const nextPage = isPageAllowed(activeUser.role, appState.page) ? appState.page : getLandingPage(activeUser.role);
       currentPageRef.current = nextPage;
+      historyIndexRef.current = appState.historyIndex;
       setPage(nextPage);
       setManagerView(appState.managerView);
-      setUtilityView(null);
-      const nextUrl = getPathForAppState(nextPage, appState.managerView);
-      if (nextPage !== appState.page || window.location.pathname !== nextUrl) {
-        window.history.replaceState(makeHistoryState(nextPage, appState.managerView), '', nextUrl);
+      const nextUtilityView = activeUser.authSource === 'demo' && appState.utilityView && ALLOWED_UTILITY_VIEWS[activeUser.role].includes(appState.utilityView)
+        ? appState.utilityView
+        : null;
+      setUtilityView(nextUtilityView);
+      const nextUrl = getUrlForAppState(nextPage, appState.managerView, nextUtilityView);
+      if (nextPage !== appState.page || `${window.location.pathname}${window.location.search}` !== nextUrl) {
+        window.history.replaceState(makeHistoryState(nextPage, appState.managerView, nextUtilityView, appState.utilityEntry, appState.historyIndex), '', nextUrl);
       }
     }
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [user]);
 
   function navigatePage(
     nextPage: PageId,
@@ -207,27 +315,25 @@ export default function App() {
     setPage(nextPage);
     if (managerView !== nextManagerView) setManagerView(nextManagerView);
     setUtilityView(null);
-    const state = makeHistoryState(nextPage, nextManagerView);
+    const nextHistoryIndex = historyMode === 'push' ? historyIndexRef.current + 1 : historyIndexRef.current;
+    const state = makeHistoryState(nextPage, nextManagerView, null, false, nextHistoryIndex);
     if (historyMode === 'push') window.history.pushState(state, '', nextUrl);
     else window.history.replaceState(state, '', nextUrl);
+    historyIndexRef.current = nextHistoryIndex;
   }
 
   function navigateManagerView(nextView: ManagerView) {
     if (managerView === nextView) return;
     setManagerView(nextView);
-    const state = makeHistoryState(currentPageRef.current, nextView);
+    const nextHistoryIndex = historyIndexRef.current + 1;
+    const state = makeHistoryState(currentPageRef.current, nextView, null, false, nextHistoryIndex);
     window.history.pushState(state, '', getPathForAppState(currentPageRef.current, nextView));
+    historyIndexRef.current = nextHistoryIndex;
   }
 
   function handleOpenUtility(nextView: UtilityView) {
     if (!user) return;
-    const allowedViews: Record<DemoUser['role'], readonly UtilityView[]> = {
-      Student: ['help', 'guide', 'announcements', 'trip-history', 'issue-report', 'privacy-request'],
-      Employee: ['help', 'guide', 'announcements', 'trip-history', 'issue-report', 'privacy-request'],
-      Manager: ['help', 'guide', 'announcements', 'trip-history', 'issue-report', 'inspection'],
-      Admin: ['help', 'guide', 'announcements', 'inspection', 'audit-log', 'privacy-request'],
-    };
-    if (!allowedViews[user.role].includes(nextView)) {
+    if (!ALLOWED_UTILITY_VIEWS[user.role].includes(nextView)) {
       showToast('บัญชีนี้ไม่มีสิทธิ์เปิดรายการดังกล่าว');
       return;
     }
@@ -236,6 +342,30 @@ export default function App() {
       return;
     }
     setUtilityView(nextView);
+    window.history.pushState(
+      makeHistoryState(currentPageRef.current, managerView, nextView, true, historyIndexRef.current + 1),
+      '',
+      getUrlForAppState(currentPageRef.current, managerView, nextView),
+    );
+    historyIndexRef.current += 1;
+  }
+
+  function handleBack(fallbackPage: PageId) {
+    if (historyIndexRef.current > 0) {
+      window.history.back();
+      return;
+    }
+    navigatePage(fallbackPage, 'replace', fallbackPage === 'manager' ? 'overview' : managerView);
+  }
+
+  function handleCloseUtility() {
+    const activeState = readAppHistoryState(window.history.state);
+    if (activeState?.utilityView && activeState.utilityEntry) {
+      window.history.back();
+      return;
+    }
+    setUtilityView(null);
+    window.history.replaceState(makeHistoryState(page, managerView, null, false, historyIndexRef.current), '', getPathForAppState(page, managerView));
   }
 
   useEffect(()=>{
@@ -720,7 +850,7 @@ export default function App() {
     const saved = writePrototypeState(audited);
     prototypeStateRef.current = audited;
     setPrototypeState(audited);
-    setUtilityView(null);
+    handleCloseUtility();
     showToast(saved ? (input.severity === 'high' ? 'บันทึกรายงานและ Safety Block ตัวอย่างแล้ว' : 'บันทึกรายงานและ Alert ตัวอย่างแล้ว') : 'บันทึกในหน้าจอแล้ว · เบราว์เซอร์จัดเก็บข้อมูลไม่ได้');
   }
 
@@ -779,8 +909,24 @@ export default function App() {
     url.searchParams.delete('recovery');
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }} onPasswordUpdated={handlePasswordUpdated} />;
+  function openPublicAuth(target: 'login' | 'register') {
+    const returnPath = window.location.pathname === '/Welcome' ? '/Welcome' : '/';
+    const nextUrl = target === 'register'
+      ? `/RegisterPage?returnTo=${encodeURIComponent(returnPath)}`
+      : '/LoginPage';
+    if (user) {
+      window.location.assign(nextUrl);
+      return;
+    }
+    window.history.pushState({ [APP_HISTORY_ENTRY_KEY]: true, authPage: target }, '', nextUrl);
+    setPublicPath(target === 'register' ? '/RegisterPage' : '/LoginPage');
+  }
+
+  if (publicPath === '/Welcome') return <LandingPage onOpenAuth={openPublicAuth} />;
   if (isRestoringAuth) return <main className="auth-loading" role="status">กำลังตรวจสอบบัญชี…</main>;
-  if (!user) return <Suspense fallback={<main className="auth-loading" role="status">กำลังเปิดหน้าเข้าสู่ระบบ…</main>}><LoginPage onLogin={handleLogin} onPasswordUpdated={handlePasswordUpdated} notice={toast} /></Suspense>;
+  if (!user) return publicPath === '/LoginPage' || publicPath === '/RegisterPage'
+    ? <Suspense fallback={<main className="auth-loading" role="status">กำลังเปิดหน้าเข้าสู่ระบบ…</main>}><LoginPage onLogin={handleLogin} onPasswordUpdated={handlePasswordUpdated} notice={toast} /></Suspense>
+    : <LandingPage onOpenAuth={openPublicAuth} />;
   if (requiresApprovalGate(user)) return <Suspense fallback={<main className="auth-loading" role="status">กำลังตรวจสอบสิทธิ์บัญชี…</main>}><ApprovalStatusPage user={user} onLogout={handleLogout} operations={myOperations.data} operationsError={myOperations.error} operationsBusy={myOperations.busy} onOperationsRun={myOperations.run} onSessionAction={myOperations.sessionAction} /></Suspense>;
 
   const breadcrumbLabel = page === 'manager'
@@ -795,12 +941,12 @@ export default function App() {
 
   return (
     <AppShell authSource={user.authSource} page={page} breadcrumbLabel={breadcrumbLabel} breadcrumbParent={breadcrumbParent} user={user} profilePhoto={profilePhoto} onNavigate={handleNavigate} onLogout={handleLogout} onOpenUtility={handleOpenUtility}>
-      {utilityView && user.authSource === 'demo' ? <UtilityViewPage view={utilityView} user={user} state={prototypeState} onBack={() => setUtilityView(null)} onSubmitIssue={handleSubmitIssue} onInspectIssue={handleInspectIssue} onSubmitPrivacyRequest={handleSubmitPrivacyRequest} onReviewPrivacyRequest={handleReviewPrivacyRequest} /> : <Suspense fallback={appPageFallback}>
-        {page === 'home' && (user.authSource === 'supabase' ? <LiveUserPage user={user} data={myOperations.data} loading={myOperations.loading} error={myOperations.error} busy={myOperations.busy} onRefresh={myOperations.refresh} onRun={myOperations.run} onRequestSession={myOperations.requestSession} onSessionAction={myOperations.sessionAction} /> : <OverviewPage user={user} sessionStatus={sessionStatus} session={ownSession} prototypeState={prototypeState} onStartPause={handleStartPause} onCancelReservation={handleCancelReservation} onOpenUtility={handleOpenUtility} onLock={handleLock} />)}
-        {page === 'ride' && (user.authSource === 'supabase' ? <LiveUserPage user={user} data={myOperations.data} loading={myOperations.loading} error={myOperations.error} busy={myOperations.busy} onRefresh={myOperations.refresh} onRun={myOperations.run} onRequestSession={myOperations.requestSession} onSessionAction={myOperations.sessionAction} /> : <RidePage status={sessionStatus} session={ownSession} onPauseResume={handleStartPause} onCancelReservation={handleCancelReservation} onEnd={handleEndSession} onOpenUtility={handleOpenUtility} onLock={handleLock} onReturnToOverview={() => handleNavigate('home')} />)}
-        {page === 'manager' && (user.authSource === 'supabase' ? (managerView === 'ride' ? <LiveUserPage user={user} data={myOperations.data} loading={myOperations.loading} error={myOperations.error} busy={myOperations.busy} onRefresh={myOperations.refresh} onRun={myOperations.run} onRequestSession={myOperations.requestSession} onSessionAction={myOperations.sessionAction} /> : <ManagerOperationsPage view={managerView} onViewChange={navigateManagerView} data={managerOperations.data} loading={managerOperations.loading} error={managerOperations.error} busy={managerOperations.busy} onRefresh={managerOperations.refresh} onRun={managerOperations.run} date={managerReportDate} onDateChange={setManagerReportDate} />) : <ManagerPage view={managerView} onViewChange={navigateManagerView} alerts={alerts} issues={prototypeState.issues} trips={prototypeState.trips} monitoredSession={prototypeState.session?.status === 'active' ? prototypeState.session : null} ownSession={ownSession} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onCancelReservation={handleCancelReservation} onEnd={handleEndSession} onLock={handleLock} onOpenUtility={handleOpenUtility} onShowToast={showToast} />)}
-        {page === 'manager-profile' && user.role === 'Manager' && (user.authSource === 'supabase' ? <ProfileSettingsPage user={user} profile={{ name: user.name, phone: user.phone ?? '' }} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleNavigate('manager')} canCloseAccount={false} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} /> : <ManagerProfilePage user={user} profile={managerProfile} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleManagerProfileSave} onCancel={() => handleNavigate('manager')} canCloseAccount={sessionStatus === 'idle'} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />)}
-        {page === 'profile-settings' && user.role !== 'Manager' && <ProfileSettingsPage user={user} profile={user.authSource === 'supabase' ? { name: user.name, phone: user.phone ?? '' } : readUserProfile(user.id)} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleNavigate(getLandingPage(user.role))} canCloseAccount={user.authSource === 'demo' && (user.role === 'Admin' || sessionStatus === 'idle')} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
+      {utilityView && user.authSource === 'demo' ? <UtilityViewPage view={utilityView} user={user} state={prototypeState} onBack={handleCloseUtility} onSubmitIssue={handleSubmitIssue} onInspectIssue={handleInspectIssue} onSubmitPrivacyRequest={handleSubmitPrivacyRequest} onReviewPrivacyRequest={handleReviewPrivacyRequest} /> : <Suspense fallback={appPageFallback}>
+        {page === 'home' && (user.authSource === 'supabase' ? <LiveUserPage user={user} view="overview" onOpenRide={() => handleNavigate('ride')} data={myOperations.data} loading={myOperations.loading} error={myOperations.error} busy={myOperations.busy} onRefresh={myOperations.refresh} onRun={myOperations.run} onRequestSession={myOperations.requestSession} onSessionAction={myOperations.sessionAction} /> : <OverviewPage user={user} sessionStatus={sessionStatus} session={ownSession} prototypeState={prototypeState} onStartPause={handleStartPause} onCancelReservation={handleCancelReservation} onOpenUtility={handleOpenUtility} onLock={handleLock} />)}
+        {page === 'ride' && (user.authSource === 'supabase' ? <LiveUserPage user={user} view="ride" onOpenOverview={() => handleNavigate('home')} data={myOperations.data} loading={myOperations.loading} error={myOperations.error} busy={myOperations.busy} onRefresh={myOperations.refresh} onRun={myOperations.run} onRequestSession={myOperations.requestSession} onSessionAction={myOperations.sessionAction} /> : <RidePage status={sessionStatus} session={ownSession} onPauseResume={handleStartPause} onCancelReservation={handleCancelReservation} onEnd={handleEndSession} onOpenUtility={handleOpenUtility} onLock={handleLock} onReturnToOverview={() => handleBack('home')} />)}
+        {page === 'manager' && (user.authSource === 'supabase' ? (managerView === 'ride' ? <LiveUserPage user={user} view="ride" onOpenOverview={() => handleNavigate('home')} data={myOperations.data} loading={myOperations.loading} error={myOperations.error} busy={myOperations.busy} onRefresh={myOperations.refresh} onRun={myOperations.run} onRequestSession={myOperations.requestSession} onSessionAction={myOperations.sessionAction} /> : <ManagerOperationsPage view={managerView} onViewChange={navigateManagerView} data={managerOperations.data} loading={managerOperations.loading} error={managerOperations.error} busy={managerOperations.busy} onRefresh={managerOperations.refresh} onRun={managerOperations.run} date={managerReportDate} onDateChange={setManagerReportDate} />) : <ManagerPage view={managerView} onViewChange={navigateManagerView} alerts={alerts} issues={prototypeState.issues} trips={prototypeState.trips} auditLog={prototypeState.auditLog} monitoredSession={prototypeState.session?.status === 'active' ? prototypeState.session : null} ownSession={ownSession} onAcknowledge={acknowledgeAlert} sessionStatus={sessionStatus} onStartPause={handleStartPause} onCancelReservation={handleCancelReservation} onEnd={handleEndSession} onLock={handleLock} onOpenUtility={handleOpenUtility} onShowToast={showToast} />)}
+        {page === 'manager-profile' && user.role === 'Manager' && (user.authSource === 'supabase' ? <ProfileSettingsPage user={user} profile={{ name: user.name, phone: user.phone ?? '' }} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleBack('manager')} canCloseAccount={false} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} /> : <ManagerProfilePage user={user} profile={managerProfile} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleManagerProfileSave} onCancel={() => handleBack('manager')} canCloseAccount={sessionStatus === 'idle'} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />)}
+        {page === 'profile-settings' && user.role !== 'Manager' && <ProfileSettingsPage user={user} profile={user.authSource === 'supabase' ? { name: user.name, phone: user.phone ?? '' } : readUserProfile(user.id)} profilePhoto={profilePhoto} onPhotoSave={handleProfilePhotoSave} onSave={handleUserProfileSave} onCancel={() => handleBack(getLandingPage(user.role))} canCloseAccount={user.authSource === 'demo' && (user.role === 'Admin' || sessionStatus === 'idle')} onResetPassword={handleProfilePasswordReset} onCloseAccount={handleProfileCloseAccount} onShowToast={showToast} />}
         {page === 'admin' && <AdminPage authSource={user.authSource} currentAdminId={user.id} onShowToast={showToast} />}
       </Suspense>}
       {user.authSource === 'supabase' && myOperations.data && <AnnouncementPopup userId={user.id} sessionActive={!!myOperations.data.session && ['Active','Paused','PendingPause','PendingResume','PendingEnd','EndedPendingSync'].includes(myOperations.data.session.status)} onShowToast={showToast} />}

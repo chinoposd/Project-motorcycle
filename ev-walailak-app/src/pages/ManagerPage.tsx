@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Activity, AlertTriangle, BatteryMedium, Check, Phone, ShieldAlert, ShieldCheck, Wrench } from 'lucide-react';
+import { Activity, AlertTriangle, BatteryMedium, Check, History, Phone, Radio, ShieldAlert, ShieldCheck, Wrench } from 'lucide-react';
 import CampusMap from '../components/CampusMap';
 import PageHeader from '../components/PageHeader';
 import SessionWorkflow from '../components/SessionWorkflow';
 import VehiclePanel from '../components/VehiclePanel';
 import { systemHealth } from '../data/mockData';
-import type { AlertRecord, DemoTripRecord, DemoVehicleSession, ManagerView, SessionStatus, UtilityView, VehicleIssueRecord } from '../types';
+import type { AlertRecord, AuditEntry, DemoTripRecord, DemoVehicleSession, ManagerView, SessionStatus, UtilityView, VehicleIssueRecord } from '../types';
 
 interface ManagerPageProps {
   view: ManagerView;
@@ -13,6 +13,7 @@ interface ManagerPageProps {
   alerts: AlertRecord[];
   issues: VehicleIssueRecord[];
   trips: DemoTripRecord[];
+  auditLog?: AuditEntry[];
   monitoredSession: DemoVehicleSession | null;
   ownSession: DemoVehicleSession | null;
   onAcknowledge: (id: string) => void;
@@ -31,7 +32,7 @@ function bangkokDateInput(date: Date): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-export default function ManagerPage({ view, onViewChange, alerts, issues, trips, monitoredSession, ownSession, onAcknowledge, sessionStatus, onStartPause, onCancelReservation, onEnd, onLock, onOpenUtility, onShowToast }: ManagerPageProps) {
+export default function ManagerPage({ view, onViewChange, alerts, issues, trips, auditLog = [], monitoredSession, ownSession, onAcknowledge, sessionStatus, onStartPause, onCancelReservation, onEnd, onLock, onOpenUtility, onShowToast }: ManagerPageProps) {
   const [alertFilter, setAlertFilter] = useState<'unread' | 'all'>('unread');
   const [reportDate, setReportDate] = useState(() => bangkokDateInput(new Date()));
   const unreadCount = alerts.filter((item) => item.state === 'unread').length;
@@ -60,6 +61,8 @@ export default function ManagerPage({ view, onViewChange, alerts, issues, trips,
         </div>
       ) : (
         <>
+          <section className="manager-command" aria-label="สรุปงาน Manager"><div className="manager-command-intro"><div><span className="manager-eyebrow"><Radio size={14} /> ต้นแบบ EV-01</span><h2>ภาพรวมรถและงานที่ต้องดูแล</h2><p>ข้อมูลจำลองในเบราว์เซอร์นี้ · ยังไม่เชื่อมต่อฮาร์ดแวร์จริง</p></div><span className="manager-demo-badge">DEMO</span></div><div className="manager-command-metrics"><div><span>Session ปัจจุบัน</span><strong>{monitoredSession ? 'กำลังใช้งาน' : ownSession?.status === 'reserved' ? 'สงวนสิทธิ์' : 'ไม่มี Active Session'}</strong><small>{monitoredSession ? monitoredSession.driverName : 'สถานะจากข้อมูลตัวอย่าง'}</small></div><div><span>ข้อมูลจากรถ</span><strong>รอเชื่อมต่ออุปกรณ์</strong><small>GPS / Motor Ready / BMS ยังไม่ใช่ข้อมูลจริง</small></div><div><span>งานแจ้งเตือน</span><strong>{unreadCount} รายการ</strong><small>Alert ที่ยังไม่รับทราบในต้นแบบ</small></div></div></section>
+          <div className="manager-dashboard-grid"><section className="panel ops-panel manager-work-panel"><div className="manager-section-heading"><div><span className="manager-section-icon"><Activity size={18}/></span><h2>งานที่ต้องติดตาม</h2></div><span className="manager-section-meta">ข้อมูลตัวอย่าง</span></div><div className="manager-work-list"><article className="manager-work-item"><span className="manager-work-dot calm"/><div><strong>{monitoredSession ? 'ติดตาม Active Session' : 'ไม่มี Session ค้าง'}</strong><p>{monitoredSession ? `ผู้ขับ ${monitoredSession.driverName} · ยังไม่มีการยืนยันจากรถจริง` : 'เมื่อเชื่อมระบบจริงจะแสดง Pending Start / Pause / End ที่นี่'}</p></div></article><article className="manager-work-item"><span className={unreadCount ? 'manager-work-dot urgent' : 'manager-work-dot calm'}/><div><strong>Alert ยังไม่รับทราบ {unreadCount} รายการ</strong><p>รับทราบได้จากศูนย์แจ้งเตือนด้านล่าง</p><a href="#manager-demo-alerts">เปิดศูนย์แจ้งเตือน</a></div></article></div></section><section className="panel ops-panel manager-warning-panel"><div className="manager-section-heading"><div><span className="manager-section-icon amber"><AlertTriangle size={18}/></span><h2>คำเตือน Cancellation / No-show</h2></div></div><p className="manager-quiet-state">บัญชีทดลองยังไม่มีข้อมูลตัวนับและเกณฑ์ Pilot · คำเตือนจริงจะแสดงเมื่อใช้บัญชีที่เชื่อมระบบ</p></section></div>
           <div className="dashboard-grid manager-grid">
             <div className="main-column">
               <CampusMap manager />
@@ -73,7 +76,7 @@ export default function ManagerPage({ view, onViewChange, alerts, issues, trips,
             </div>
 
             <aside className="side-column">
-              <section className="panel alert-center">
+              <section id="manager-demo-alerts" className="panel alert-center">
                 <div className="panel-heading"><div className="heading-with-icon"><AlertTriangle size={17} /><h2>ศูนย์แจ้งเตือน</h2></div><span className="alert-count">{unreadCount} ใหม่</span></div>
                 <div className="alert-tabs" role="tablist" aria-label="กรอง Alert"><button type="button" role="tab" aria-selected={alertFilter === 'unread'} className={alertFilter === 'unread' ? 'active' : ''} onClick={() => setAlertFilter('unread')}>ยังไม่รับทราบ</button><button type="button" role="tab" aria-selected={alertFilter === 'all'} className={alertFilter === 'all' ? 'active' : ''} onClick={() => setAlertFilter('all')}>ทั้งหมด</button></div>
                 <div className="alert-list">{visibleAlerts.map((alert) => <article className={`alert-item ${alert.severity}${alert.state === 'acknowledged' ? ' acknowledged' : ''}`} key={alert.id}><div className="alert-topline"><span className={`severity-icon ${alert.severity}`}>{alert.severity === 'high' ? <ShieldAlert size={15} /> : alert.severity === 'warning' ? <AlertTriangle size={15} /> : <Check size={15} />}</span><div className="alert-copy"><div className="alert-title-row"><h3>{alert.title}</h3><span className={`severity-label ${alert.severity}`}>{alert.category}</span></div><p>{alert.description}</p><time>{alert.time} · ข้อมูลตัวอย่าง</time></div></div><div className="alert-footer">{alert.state === 'acknowledged' ? <span className="acknowledged-note">รับทราบแล้ว · เมื่อสักครู่</span> : <span className="acknowledged-note">บันทึกผลรับทราบแยกรายการ</span>}<button className="ack-button" type="button" disabled={alert.state === 'acknowledged'} onClick={() => onAcknowledge(alert.id)}>{alert.state === 'acknowledged' ? 'รับทราบแล้ว' : 'รับทราบ'}</button></div></article>)}</div>
@@ -85,6 +88,7 @@ export default function ManagerPage({ view, onViewChange, alerts, issues, trips,
               <div className="tiny-note"><BatteryMedium size={14} />ข้อมูลสถานะทั้งหมดเป็นตัวอย่าง</div>
             </aside>
           </div>
+          <section className="panel ops-panel manager-history-panel"><div className="manager-section-heading"><div><span className="manager-section-icon"><History size={18}/></span><h2>ประวัติการดำเนินงาน</h2></div><span className="manager-section-meta">ข้อมูลจำลองในเบราว์เซอร์</span></div>{auditLog.length?<div className="manager-history-list">{auditLog.slice(0,8).map(entry=><article key={entry.id}><span className="manager-history-mark"/><div><strong>{entry.action}</strong><p>{entry.actorName} · {entry.reason}</p><small>{new Date(entry.createdAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})}</small></div></article>)}</div>:<p className="manager-quiet-state">ยังไม่มีการดำเนินงานในข้อมูลตัวอย่าง</p>}</section>
         </>
       )}
     </>
