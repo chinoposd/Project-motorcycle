@@ -36,6 +36,7 @@ import AnnouncementPopup from './components/AnnouncementPopup';
 import EndSessionDialog from './components/EndSessionDialog';
 import PreflightDialog from './components/PreflightDialog';
 import PasswordRecoveryPage from './pages/PasswordRecoveryPage';
+import LandingPage from './pages/LandingPage';
 import UtilityViewPage from './pages/UtilityViewPage';
 import {bangkokDay} from './features/operations/client';
 import {useMyOperations} from './features/operations/useMyOperations';
@@ -173,6 +174,7 @@ const ManagerOperationsPage = lazy(() => import('./features/operations/ManagerOp
 const appPageFallback = <div className="page-loading" role="status" aria-live="polite">กำลังโหลดหน้า…</div>;
 
 export default function App() {
+  const [publicPath, setPublicPath] = useState(() => window.location.pathname);
   const [user, setUser] = useState<AppUser | null>(() => {
     const restored = readDemoSession();
     if (!restored) return null;
@@ -240,6 +242,13 @@ export default function App() {
   }
 
   useEffect(() => {
+    const syncPublicPath = () => setPublicPath(window.location.pathname);
+    window.addEventListener('popstate', syncPublicPath);
+    return () => window.removeEventListener('popstate', syncPublicPath);
+  }, []);
+
+  useEffect(() => {
+    if (window.location.pathname === '/Welcome' || (!user && window.location.pathname === '/')) return;
     const authRoute = ['/LoginPage', '/RegisterPage', '/ForgotPassword'].includes(window.location.pathname);
     const currentState = window.history.state as Record<string, unknown> | null;
     if (user && !readAppHistoryState(currentState)) {
@@ -900,8 +909,24 @@ export default function App() {
     url.searchParams.delete('recovery');
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }} onPasswordUpdated={handlePasswordUpdated} />;
+  function openPublicAuth(target: 'login' | 'register') {
+    const returnPath = window.location.pathname === '/Welcome' ? '/Welcome' : '/';
+    const nextUrl = target === 'register'
+      ? `/RegisterPage?returnTo=${encodeURIComponent(returnPath)}`
+      : '/LoginPage';
+    if (user) {
+      window.location.assign(nextUrl);
+      return;
+    }
+    window.history.pushState({ [APP_HISTORY_ENTRY_KEY]: true, authPage: target }, '', nextUrl);
+    setPublicPath(target === 'register' ? '/RegisterPage' : '/LoginPage');
+  }
+
+  if (publicPath === '/Welcome') return <LandingPage onOpenAuth={openPublicAuth} />;
   if (isRestoringAuth) return <main className="auth-loading" role="status">กำลังตรวจสอบบัญชี…</main>;
-  if (!user) return <Suspense fallback={<main className="auth-loading" role="status">กำลังเปิดหน้าเข้าสู่ระบบ…</main>}><LoginPage onLogin={handleLogin} onPasswordUpdated={handlePasswordUpdated} notice={toast} /></Suspense>;
+  if (!user) return publicPath === '/LoginPage' || publicPath === '/RegisterPage'
+    ? <Suspense fallback={<main className="auth-loading" role="status">กำลังเปิดหน้าเข้าสู่ระบบ…</main>}><LoginPage onLogin={handleLogin} onPasswordUpdated={handlePasswordUpdated} notice={toast} /></Suspense>
+    : <LandingPage onOpenAuth={openPublicAuth} />;
   if (requiresApprovalGate(user)) return <Suspense fallback={<main className="auth-loading" role="status">กำลังตรวจสอบสิทธิ์บัญชี…</main>}><ApprovalStatusPage user={user} onLogout={handleLogout} operations={myOperations.data} operationsError={myOperations.error} operationsBusy={myOperations.busy} onOperationsRun={myOperations.run} onSessionAction={myOperations.sessionAction} /></Suspense>;
 
   const breadcrumbLabel = page === 'manager'

@@ -142,7 +142,6 @@ export default function RegisterPage({ onClose, onLogin }: RegisterPageProps) {
         }
         if (result.user) {
           onLogin(result.user);
-          onClose();
           return;
         }
         setServerMessage('สร้างบัญชีไม่สำเร็จ · กรุณาลองอีกครั้ง');
@@ -157,7 +156,6 @@ export default function RegisterPage({ onClose, onLogin }: RegisterPageProps) {
         return;
       }
       onLogin({ ...result.user, authSource: 'demo' });
-      onClose();
     } catch {
       setServerMessage('ดำเนินการไม่สำเร็จ · ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง');
     } finally {

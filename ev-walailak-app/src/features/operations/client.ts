@@ -38,5 +38,5 @@ export function ownerSessionAction(id:string,action:string):Promise<OpsResult<Op
   return supabase?result(supabase.rpc('session_owner_action',{p_session_id:id,p_action:action})):Promise.resolve(unavailable);
 }
 export const bangkokDay=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-export function displayTime(value:string|null|undefined):string{return value&&Number.isFinite(Date.parse(value))?new Date(value).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'}):'—';}
+export {displayTime} from './formatTime';
 export function localTimeInput(value:string|null):string {if(!value)return '';const date=new Date(value);return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);}
