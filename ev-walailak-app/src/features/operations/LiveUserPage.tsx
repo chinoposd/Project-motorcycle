@@ -49,12 +49,12 @@ type FeedItem =
   | { id: string; type: 'notice'; title: string; message: string; createdAt: string; source: UserNotice };
 
 function vehicleAvailabilityLabel(data: MyOperations | null): string {
-  if (!data) return 'กำลังตรวจสอบความพร้อม';
+  if (!data) return 'รอข้อมูลสถานะรถ';
   return ({
     available: 'รถพร้อมรับคำขอ',
     in_use: 'รถกำลังมีผู้ใช้งาน',
     unavailable: 'รถยังไม่พร้อมให้บริการ',
-    unknown: 'กำลังตรวจสอบความพร้อม',
+    unknown: 'รอยืนยันความพร้อมจากรถ',
   } as const)[data.vehicle_availability ?? 'unknown'];
 }
 
@@ -123,9 +123,21 @@ export default function LiveUserPage({
   const accountStatus = data?.account.status ?? user.accountStatus;
   const drivingPermission = data?.account.driving_permission ?? user.drivingPermission === true;
   const accountApproved = accountStatus === 'Approved';
-  const canRequest = !!data && !session && available && accountApproved && drivingPermission && !busy
-    && Boolean(data.consent_versions?.privacy && data.consent_versions?.terms
-      && data.consent_versions?.privacy_text && data.consent_versions?.terms_text);
+  const consentPublished = Boolean(data?.consent_versions?.privacy && data?.consent_versions?.terms
+    && data?.consent_versions?.privacy_text && data?.consent_versions?.terms_text);
+  const canRequest = !!data && !session && available && accountApproved && drivingPermission
+    && data.account.induction_confirmed && consentPublished && !busy;
+  const startBlockers: string[] = [];
+  if (!data) startBlockers.push('กำลังรอข้อมูลล่าสุดจากระบบ');
+  else {
+    if (!accountApproved) startBlockers.push('บัญชียังไม่ได้รับอนุมัติ');
+    if (!drivingPermission) startBlockers.push('ต้องได้รับ Driving Permission จาก Admin ก่อน');
+    else if (!data.account.induction_confirmed) startBlockers.push('รอทีมงานยืนยันการแนะนำก่อนขับ');
+    if (data.vehicle_availability === 'in_use') startBlockers.push('รถกำลังมีผู้ใช้งาน');
+    else if (data.vehicle_availability === 'unavailable') startBlockers.push('รถยังไม่พร้อมให้บริการ');
+    else if (!available) startBlockers.push('รอข้อมูลความพร้อมที่ยืนยันจากรถ');
+    if (!consentPublished) startBlockers.push('รอเผยแพร่ Privacy Notice และข้อตกลงฉบับปัจจุบัน');
+  }
   const seconds = session?.status === 'Reserved' ? Math.max(0, Math.ceil((Date.parse(session.expires_at) - now) / 1000)) : null;
   const phone = data?.project_phone?.replace(/[^+\d]/g, '') ?? '';
 
@@ -204,8 +216,8 @@ export default function LiveUserPage({
   return (
     <div className={`ops-live-user${view === 'overview' ? ' is-overview' : ''}`}>
       <PageHeader
-        title={view === 'ride' ? 'ระหว่างใช้งาน' : 'พร้อมใช้รถหรือยัง?'}
-        description={view === 'ride' ? 'ติดตาม Session ปัจจุบันและขั้นตอนคืนรถ' : 'ตรวจสิทธิ์และความพร้อมของรถก่อนเริ่มใช้งาน'}
+        title={view === 'ride' ? 'ระหว่างใช้งาน' : 'ตรวจความพร้อมก่อนใช้รถ'}
+        description={view === 'ride' ? 'ติดตาม Session ปัจจุบันและขั้นตอนคืนรถ' : 'ตรวจสิทธิ์ สถานะรถ และเอกสารยินยอมก่อนขอเริ่ม Session'}
       />
       {error && <div className="admin-feedback error" role="alert">{error} <button type="button" className="text-button" onClick={() => void onRefresh()}>ลองใหม่</button></div>}
       {loading && !data && <p role="status" className="ops-empty">กำลังอ่านสถานะจากระบบ…</p>}
@@ -228,7 +240,7 @@ export default function LiveUserPage({
         <section className="user-start-area" aria-label="รถและการเริ่มใช้งาน">
           <div className="user-start-panel">
             <div className="user-vehicle-title-row">
-              <div><p className="user-section-label">รถของฉัน</p><h2>EV-01</h2></div>
+              <div><p className="user-section-label">รถโครงการ</p><h2>EV-01</h2></div>
               <span className={`user-vehicle-state ${available ? 'is-ready' : 'is-blocked'}`}><span aria-hidden="true" />{vehicleAvailabilityLabel(data)}</span>
             </div>
             {session ? <div className="user-current-session">
@@ -240,9 +252,9 @@ export default function LiveUserPage({
                 <button className="button button-primary user-start-button" type="submit" disabled={!canRequest || !inspection || !terms}><Bike size={18} />ขอเริ่ม Session<ChevronRight size={17} /></button>
                 <label className="ops-check"><input type="checkbox" checked={inspection} required onChange={(event) => setInspection(event.target.checked)} />ยืนยันตรวจรถและความปลอดภัยแล้ว</label>
                 <label className="ops-check"><input type="checkbox" checked={terms} required onChange={(event) => setTerms(event.target.checked)} />ยอมรับ Privacy Notice และข้อตกลง</label>
-                <details><summary><ChevronDown size={16} /> อ่านประกาศฉบับปัจจุบัน</summary><div className="user-consent-copy"><p>{data?.consent_versions?.privacy_text || 'ยังไม่ได้เผยแพร่ Privacy Notice'}</p><p>{data?.consent_versions?.terms_text || 'ยังไม่ได้เผยแพร่ข้อตกลง'}</p></div></details>
               </fieldset>
-              {!canRequest && <p className="user-block-reason">{!data ? 'กำลังรอข้อมูลจากระบบ' : !accountApproved ? 'บัญชียังไม่ได้รับอนุมัติ' : !drivingPermission ? 'ต้องได้รับ Driving Permission ก่อนเริ่ม' : !data.consent_versions?.privacy_text || !data.consent_versions?.terms_text ? 'รอเผยแพร่ Privacy Notice และข้อตกลงฉบับปัจจุบัน' : session ? 'มี Session ที่ยังไม่สิ้นสุด' : !available ? 'รถหรือเงื่อนไขการเริ่มยังไม่พร้อม' : ''}</p>}
+              <details><summary><ChevronDown size={16} /> อ่าน Privacy Notice และข้อตกลง</summary><div className="user-consent-copy"><p>{data?.consent_versions?.privacy_text || 'ยังไม่ได้เผยแพร่ Privacy Notice'}</p><p>{data?.consent_versions?.terms_text || 'ยังไม่ได้เผยแพร่ข้อตกลง'}</p></div></details>
+              {startBlockers.length > 0 && <div className="user-block-reason" role="status"><strong>ยังขอเริ่ม Session ไม่ได้</strong><ul>{startBlockers.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
             </form>}
           </div>
 
@@ -317,14 +329,23 @@ export default function LiveUserPage({
 
       {view === 'ride' && <div className="ops-two-columns">
         <section className="panel ops-panel"><h2>Session จริง</h2><p>สถานะรถ: <strong>{vehicleAvailabilityLabel(data)}</strong></p>
-          <p>Driving Permission: <strong>{user.drivingPermission ? 'ได้รับสิทธิ์' : 'ยังไม่ได้รับสิทธิ์'}</strong></p>
+          <p>Driving Permission: <strong>{drivingPermission ? 'ได้รับสิทธิ์' : 'ยังไม่ได้รับสิทธิ์'}</strong></p>
           {session ? <div className="ops-record"><strong>{session.status}</strong><p>ขอเริ่ม {displayTime(session.created_at)} · เริ่มจริง {displayTime(session.started_at)}</p>{pending && <p className="ops-warning">{session.status === 'Reserved' ? `รอหลักฐาน Motor Ready จากรถ · สิทธิ์จองหมดอายุใน ${seconds} วินาที` : 'กำลังตรวจสอบผลสั่งงานกับรถ · รอหลักฐาน Motor Ready'}</p>}
             <div className="ops-row">{session.status === 'Reserved' && <button className="button button-outline" type="button" disabled={busy} onClick={() => void onSessionAction(session.id, 'cancel')}>ยกเลิกคำขอ</button>}{session.status === 'Active' && <button className="button button-outline" type="button" disabled={busy} onClick={() => void onSessionAction(session.id, 'pause')}>ขอ Pause</button>}{session.status === 'Paused' && <button className="button button-outline" type="button" disabled={busy} onClick={() => void onSessionAction(session.id, 'resume')}>ขอ Resume</button>}{(session.status === 'Active' || session.status === 'Paused' || session.status === 'PendingEnd') && <button className="button button-primary" type="button" disabled={busy} onClick={() => void onSessionAction(session.id, 'end')}>ขอจบ Session</button>}</div>
             {session.status === 'PendingEnd' && <><p className="muted">จะจบจริงเมื่อรถยืนยันหยุด มอเตอร์ปิด และผ่าน Return Zone หรือข้อยกเว้นที่กำหนด</p><button type="button" className="button button-outline button-small" disabled={busy} onClick={checkReturnLocation}>ส่งพิกัดโทรศัพท์เพื่อตรวจ Return Zone</button>{locationError && <p className="ops-warning">{locationError}</p>}</>}
           </div> : <p className="ops-empty">{data ? 'ยังไม่มี Session ของคุณ' : 'รอข้อมูล Session'}</p>}
           {data && user.role !== 'Manager' && onOpenOverview && <button type="button" className="button button-outline" onClick={onOpenOverview}>กลับไปภาพรวมเพื่อขอเริ่มใช้งาน</button>}
-          {!session && user.role === 'Manager' && <form className="ops-form" onSubmit={(event) => { event.preventDefault(); void request(); }}><fieldset disabled={!canRequest}><h3>ตรวจสภาพก่อนขับ</h3><p className="muted">ตรวจรถจริงก่อนทุกครั้ง คำขอผ่านเว็บเป็นการจองชั่วคราวจนกว่ารถยืนยัน Motor Ready</p><label className="ops-check"><input type="checkbox" checked={inspection} required onChange={(event) => setInspection(event.target.checked)} />ยืนยันว่าตรวจรถและสภาพความปลอดภัยก่อนขับแล้ว</label><details><summary>อ่าน Privacy Notice และข้อตกลงรุ่นปัจจุบัน</summary><p>{data?.consent_versions?.privacy_text || 'ยังไม่ได้เผยแพร่ Privacy Notice'}</p><p>{data?.consent_versions?.terms_text || 'ยังไม่ได้เผยแพร่ข้อตกลง'}</p></details><label className="ops-check"><input type="checkbox" checked={terms} required onChange={(event) => setTerms(event.target.checked)} />ยอมรับ Privacy Notice {data?.consent_versions?.privacy ?? '—'} และข้อตกลง {data?.consent_versions?.terms ?? '—'}</label><button className="button button-primary" type="submit">ขอเริ่ม Session</button></fieldset></form>}
-          {user.role === 'Manager' && !canRequest && !session && data && <p className="ops-warning">{!accountApproved ? 'ต้องให้ Admin อนุมัติบัญชี' : !drivingPermission ? 'ต้องให้ Admin ยืนยันการแนะนำและเปิด Driving Permission' : !data.consent_versions?.privacy_text || !data.consent_versions?.terms_text ? 'รอเผยแพร่ Privacy Notice และข้อตกลงที่ตรวจทานแล้ว' : 'รถหรือเงื่อนไขการเริ่มยังไม่พร้อม · โหลดสถานะใหม่เมื่อพร้อม'}</p>}
+          {!session && user.role === 'Manager' && <form className="ops-form" onSubmit={(event) => { event.preventDefault(); void request(); }}>
+            <fieldset disabled={!canRequest}>
+              <h3>ตรวจสภาพก่อนขับ</h3>
+              <p className="muted">ตรวจรถจริงก่อนทุกครั้ง คำขอผ่านเว็บเป็นการจองชั่วคราวจนกว่ารถยืนยัน Motor Ready</p>
+              <label className="ops-check"><input type="checkbox" checked={inspection} required onChange={(event) => setInspection(event.target.checked)} />ยืนยันว่าตรวจรถและสภาพความปลอดภัยก่อนขับแล้ว</label>
+              <label className="ops-check"><input type="checkbox" checked={terms} required onChange={(event) => setTerms(event.target.checked)} />ยอมรับ Privacy Notice {data?.consent_versions?.privacy ?? '—'} และข้อตกลง {data?.consent_versions?.terms ?? '—'}</label>
+              <button className="button button-primary" type="submit" disabled={!canRequest || !inspection || !terms}>ขอเริ่ม Session</button>
+            </fieldset>
+            <details><summary>อ่าน Privacy Notice และข้อตกลงรุ่นปัจจุบัน</summary><p>{data?.consent_versions?.privacy_text || 'ยังไม่ได้เผยแพร่ Privacy Notice'}</p><p>{data?.consent_versions?.terms_text || 'ยังไม่ได้เผยแพร่ข้อตกลง'}</p></details>
+          </form>}
+          {user.role === 'Manager' && !session && startBlockers.length > 0 && <div className="ops-warning" role="status">ยังขอเริ่ม Session ไม่ได้<ul>{startBlockers.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
         </section>
         <section className="panel ops-panel"><h2>ข้อมูลจากรถ</h2>{data?.own_vehicle && <><p>แบตเตอรี่: {data.own_vehicle.battery_percent ?? 'ไม่มีข้อมูล'}{data.own_vehicle.battery_percent != null ? '%' : ''}</p><p>GPS ล่าสุด: {displayTime(data.own_vehicle.gps_at)} {data.own_vehicle.fresh ? '' : '· ข้อมูลเก่า'}</p></>}
           <VehicleLiveMap fix={{ latitude: data?.own_vehicle?.latitude ?? null, longitude: data?.own_vehicle?.longitude ?? null, gpsAt: data?.own_vehicle?.gps_at ?? null, fresh: data?.own_vehicle?.fresh ?? null, sessionActive: session?.status === 'Active' }} />

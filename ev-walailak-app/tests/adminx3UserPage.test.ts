@@ -3,7 +3,22 @@ import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {test} from 'node:test';
 import {createServer} from 'vite';
-import type {OperationsSnapshot} from '../src/features/operations/types';
+import type {MyOperations,OperationsSnapshot} from '../src/features/operations/types';
+
+test('real driver sees vehicle and consent blockers while consent remains readable',async()=>{
+  const vite=await createServer({server:{middlewareMode:true,hmr:false},appType:'custom'});
+  try{
+    const {default:LiveUserPage}=await vite.ssrLoadModule('/src/features/operations/LiveUserPage.tsx');
+    const data={account:{id:'driver',name:'Test Driver',phone:'',role:'Student',status:'Approved',account_status_reason:'',driving_permission:true,induction_confirmed:true},vehicle_availability:'unknown',session:null,
+      consent_versions:{privacy:null,terms:null,privacy_text:null,terms_text:null},project_phone:'',notices:[],trips:[],own_vehicle:null} as unknown as MyOperations;
+    const html=renderToStaticMarkup(createElement(LiveUserPage,{user:{id:'driver',name:'Test Driver',role:'Student',email:'driver@example.test',authSource:'supabase',accountStatus:'Approved',drivingPermission:true},data,loading:false,error:'',busy:false,onRefresh:async()=>undefined,onRun:async()=>false,onRequestSession:async()=>false,onSessionAction:async()=>false}));
+    assert.ok(html.includes('รอยืนยันความพร้อมจากรถ'));
+    assert.ok(html.includes('รอเผยแพร่ Privacy Notice และข้อตกลง'));
+    const startForm=html.slice(html.indexOf('class="user-start-form"'),html.indexOf('</form>',html.indexOf('class="user-start-form"')));
+    assert.match(startForm,/<fieldset disabled=""/);
+    assert.ok(startForm.indexOf('</fieldset>')<startForm.indexOf('<details>'));
+  }finally{await vite.close();}
+});
 
 test('real driver screens show authoritative empty states and owner controls',async()=>{
   const vite=await createServer({server:{middlewareMode:true,hmr:false},appType:'custom'});

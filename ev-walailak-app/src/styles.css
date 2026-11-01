@@ -1157,6 +1157,8 @@ svg { flex: none; }
 .user-consent-copy { max-height: 190px; overflow: auto; padding: 10px 12px; margin-top: 8px; border: 1px solid #e1eaf5; border-radius: 8px; background: #f8fbff; }
 .user-consent-copy p { color: #556b85; white-space: pre-wrap; }
 .ops-live-user.is-overview .user-block-reason { padding: 11px 13px; margin: 13px 0 0; border-left: 3px solid #d18a26; border-radius: 6px; color: #7d561a; background: #fff7ea; font-size: 12px; line-height: 1.6; }
+.ops-live-user.is-overview .user-block-reason strong { display: block; }
+.ops-live-user.is-overview .user-block-reason ul { padding-left: 19px; margin: 4px 0 0; }
 .ops-live-user.is-overview .user-current-session { display: grid; gap: 10px; }
 .ops-live-user.is-overview .user-current-session > strong { color: #173e67; font-size: 16px; }
 .ops-live-user.is-overview .user-current-session p { margin: 0; color: #657a92; }
