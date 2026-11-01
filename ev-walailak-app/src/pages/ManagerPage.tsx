@@ -4,6 +4,7 @@ import CampusMap from '../components/CampusMap';
 import PageHeader from '../components/PageHeader';
 import SessionWorkflow from '../components/SessionWorkflow';
 import VehiclePanel from '../components/VehiclePanel';
+import ManagerRideInsights from '../features/operations/ManagerRideInsights';
 import { systemHealth } from '../data/mockData';
 import type { AlertRecord, DemoTripRecord, DemoVehicleSession, ManagerView, SessionStatus, UtilityView, VehicleIssueRecord } from '../types';
 
@@ -50,6 +51,7 @@ export default function ManagerPage({ view, onViewChange, alerts, issues, trips,
       </div>
 
       {view === 'ride' ? (
+        <><ManagerRideInsights data={null} sessionStatus={sessionStatus} demo />
         <div className="dashboard-grid ride-grid manager-ride-grid">
           <div className="main-column"><VehiclePanel status={sessionStatus} reserveExpiresAt={ownSession?.reserveExpiresAt} locked={ownSession?.locked} onCancelReservation={onCancelReservation} manager onStartPause={onStartPause} onLock={onLock} /><CampusMap /></div>
           <aside className="side-column">
@@ -57,7 +59,7 @@ export default function ManagerPage({ view, onViewChange, alerts, issues, trips,
             <section className="panel"><h2>สถานะระบบรถ</h2><div className="manager-health-list">{systemHealth.map((item) => <div className="health-row" key={item.name}><span className={`health-indicator ${item.state}`} /><div><strong>{item.name}</strong><span>{item.detail}</span></div><em className={item.state}>{item.value}</em></div>)}</div></section>
             <div className="callout callout-info"><Activity size={16} /><p>หากข้อมูลรถขาดหรือเก่า ระบบจริงควรแสดงว่าไม่สามารถรับข้อมูลจากรถได้</p></div>
           </aside>
-        </div>
+        </div></>
       ) : (
         <>
           <div className="dashboard-grid manager-grid">

@@ -1002,6 +1002,20 @@ svg { flex: none; }
 .ops-metrics span { font-size: 12px; color: #69809c; }
 .ops-summary { grid-template-columns: repeat(4,minmax(0,1fr)); margin-top: 0; }
 .ops-summary article { background: white; }
+.manager-ride-insights { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(320px,1fr); gap: 18px; margin: 0 0 22px; }
+.manager-ride-permission { display: flex; align-items: flex-start; gap: 16px; min-width: 0; padding: 23px 25px; border: 1px solid #bfd8ee; border-radius: 16px; background: linear-gradient(130deg,#eaf5ff,#f9fcff 76%); box-shadow: 0 9px 25px rgba(29,75,123,.06); }
+.manager-insight-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #1269aa; background: #d7ecff; }
+.manager-ride-permission h2 { margin: 0 0 7px; color: #183d63; font-size: 17px; line-height: 1.4; }
+.manager-ride-permission p { margin: 0; color: #45627f; font-size: 13px; line-height: 1.7; }
+.manager-ride-readings { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.manager-ride-readings > div { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; padding: 17px 19px; border: 1px solid #dce6f3; border-radius: 16px; background: #fff; box-shadow: 0 9px 25px rgba(29,75,123,.04); }
+.manager-ride-readings svg { color: #3979ad; }
+.manager-ride-readings span { color: #637d97; font-size: 12px; }
+.manager-ride-readings strong { color: #173d63; font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
+.manager-ride-readings small { color: #768ba0; font-size: 11px; line-height: 1.4; }
+.manager-ride-next-step { grid-column: 1/-1; margin: 0; padding: 14px 17px; border: 1px solid #f0d6ad; border-left: 4px solid #d99a39; border-radius: 9px; color: #76542b; background: #fff8ed; line-height: 1.65; font-size: 13px; }
+@media(max-width:900px) { .manager-ride-insights { grid-template-columns: 1fr; } }
+@media(max-width:520px) { .manager-ride-readings { grid-template-columns: 1fr 1fr; } .manager-ride-permission { padding: 18px; } .manager-ride-readings > div { padding: 14px; } }
 .ops-data-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin: 18px 0; }
 .ops-data-grid > div { font-size: 12px; color: #71819a; }
 .ops-data-grid strong { display: block; color: #244765; margin-top: 6px; font-size: 14px; }

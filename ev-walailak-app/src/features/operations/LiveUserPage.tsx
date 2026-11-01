@@ -6,6 +6,7 @@ import ZonePreview from './ZonePreview';
 import {displayTime} from './client';
 import type {MyOperations} from './types';
 import VehicleLiveMap from './VehicleLiveMap';
+import ManagerRideInsights from './ManagerRideInsights';
 
 interface Props {user:AppUser;data:MyOperations|null;loading:boolean;error:string;busy:boolean;
   onRefresh:()=>Promise<void>;onRun:(action:string,payload:Record<string,unknown>)=>Promise<boolean>;
@@ -29,6 +30,8 @@ export default function LiveUserPage({user,data,loading,error,busy,onRefresh,onR
     <PageHeader title="การใช้รถ EV-01" description="ข้อมูลบัญชีและ Session จากระบบจริง" badge={user.role}/>
     {error&&<div className="admin-feedback error" role="alert">{error} <button type="button" className="text-button" onClick={()=>void onRefresh()}>ลองใหม่</button></div>}
     {loading&&!data&&<p role="status" className="ops-empty">กำลังอ่านสถานะจากระบบ…</p>}
+    {user.role==='Manager'&&<ManagerRideInsights data={data} sessionStatus={session?.status}/>}
+    {user.role==='Manager'&&error&&<p className="manager-ride-next-step" role="status">ตรวจสาเหตุที่ระบบแจ้งด้านบน แล้วโหลดสถานะใหม่ หากเริ่มรถไม่ได้ ให้ตรวจ Driving Permission, การตรวจสภาพรถ และความพร้อมของรถ หากคืนรถไม่ได้ ให้จอดนิ่งใน Return Zone และรอการยืนยัน Motor Ready ปิดจริง</p>}
     <div className="ops-two-columns">
       <section className="panel ops-panel"><h2>Session จริง</h2><p>สถานะรถ: <strong>{data?({available:'พร้อมรับคำขอ',in_use:'มีผู้ใช้งาน',unavailable:'ยังไม่พร้อมให้บริการ',unknown:'ยังไม่มีข้อมูลยืนยันจากรถ'}[data.vehicle_availability??'unknown']):'กำลังตรวจสอบ'}</strong></p>
         <p>Driving Permission: <strong>{user.drivingPermission?'ได้รับสิทธิ์':'ยังไม่ได้รับสิทธิ์'}</strong></p>
