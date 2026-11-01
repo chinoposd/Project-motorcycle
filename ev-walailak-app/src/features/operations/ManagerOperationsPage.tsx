@@ -1,4 +1,6 @@
 import PageHeader from '../../components/PageHeader';
+import type { AppUser } from '../../auth/supabaseAuth';
+import DrivingPermissionRequestPanel from './DrivingPermissionRequestPanel';
 import type {ManagerView} from '../../types';
 import {bangkokDay,displayTime} from './client';
 import {Alerts,DailyReport,type RunOperation} from './OperationalOverview';
@@ -7,14 +9,15 @@ import {ManagerActivityHistory,ManagerBehaviorWarnings,ManagerStatusSummary,Mana
 import type {OperationsSnapshot} from './types';
 import VehicleLiveMap from './VehicleLiveMap';
 
-interface Props {view:ManagerView;onViewChange:(view:ManagerView)=>void;data:OperationsSnapshot|null;loading:boolean;error:string;busy:boolean;onRefresh:()=>Promise<void>;onRun:RunOperation;date?:string;onDateChange?:(date:string)=>void}
-export default function ManagerOperationsPage({view,onViewChange,data,loading,error,busy,onRefresh,onRun,date=bangkokDay(),onDateChange=()=>undefined}:Props){
+interface Props {user:AppUser;view:ManagerView;onViewChange:(view:ManagerView)=>void;data:OperationsSnapshot|null;loading:boolean;error:string;busy:boolean;onRefresh:()=>Promise<void>;onRun:RunOperation;date?:string;onDateChange?:(date:string)=>void}
+export default function ManagerOperationsPage({user,view,onViewChange,data,loading,error,busy,onRefresh,onRun,date=bangkokDay(),onDateChange=()=>undefined}:Props){
   const v=data?.vehicle,s=data?.current_session;
   return <div className="ops-manager"><PageHeader title="ภาพรวมการปฏิบัติงาน" description="ติดตามรถ ตรวจงานค้าง และดูรายงานการใช้งาน" badge="Manager"/>
     <div className="manager-page-controls"><div className="view-switch" role="tablist" aria-label="เมนู Manager"><button type="button" role="tab" aria-selected={view==='overview'} className={view==='overview'?'active':''} onClick={()=>onViewChange('overview')}>ภาพรวม</button><button type="button" role="tab" aria-selected={view==='ride'} className={view==='ride'?'active':''} onClick={()=>onViewChange('ride')}>ขับขี่รถ</button></div>
       <nav className="manager-section-nav" aria-label="ข้ามไปยังส่วนในหน้าภาพรวม"><span>ข้ามไปยัง</span><a href="#manager-work">งานที่ต้องติดตาม</a><a href="#manager-vehicle">รถและ Session</a><a href="#manager-alerts">แจ้งเตือน</a><a href="#manager-report">รายงาน</a><a href="#manager-reviews">ตรวจสอบ</a><a href="#manager-history">ประวัติ</a></nav>
     </div>
     {error&&<div role="alert" className="admin-feedback error">{error}<button className="text-button" type="button" onClick={()=>void onRefresh()}>โหลดใหม่</button></div>}{loading&&!data&&<p role="status">กำลังโหลดข้อมูลปฏิบัติการ…</p>}
+    {!user.drivingPermission && <section className="panel ops-panel"><h2>สิทธิ์ขับรถของ Manager</h2><DrivingPermissionRequestPanel userId={user.id} approved={user.accountStatus==='Approved'} permitted={false}/></section>}
     <ManagerStatusSummary data={data} onRefresh={onRefresh}/>
     <div id="manager-work" className="manager-anchor manager-dashboard-grid"><ManagerWorkQueue data={data}/><ManagerBehaviorWarnings data={data}/></div>
     <div className="manager-dashboard-grid manager-dashboard-main"><section id="manager-vehicle" className="panel ops-panel manager-anchor"><div className="manager-section-heading"><div><h2>รถและ Session ปัจจุบัน</h2></div><span className="manager-section-meta">EV-01</span></div><div className="manager-service-line"><span>Safety Block <strong className={data?.service.safety_block_active?'is-on':''}>{data?data.service.safety_block_active?'เปิดอยู่':'ไม่มี':'—'}</strong></span><span>OUT_OF_SERVICE <strong className={data?.service.manual_out_of_service?'is-on':''}>{data?data.service.manual_out_of_service?'เปิดอยู่':'ไม่มี':'—'}</strong></span></div>

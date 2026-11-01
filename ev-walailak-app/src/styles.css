@@ -1133,6 +1133,11 @@ svg { flex: none; }
 .ops-live-user.is-overview .user-eligibility strong { display: flex; align-items: center; gap: 6px; color: #176b49; font-size: 15px; line-height: 1.4; }
 .ops-live-user.is-overview .user-eligibility .is-blocked strong { color: #8d5b14; }
 .ops-live-user.is-overview .user-eligibility small { font-size: 11px; }
+.driving-request-panel { display: grid; gap: 8px; margin-top: 8px; }
+.driving-request-panel .ops-form { margin: 0; }
+.driving-request-panel .ops-field textarea { width: 100%; min-width: 0; }
+.driving-request-panel .ops-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.driving-request-panel .ops-warning { color: #9c3734; }
 .ops-live-user.is-overview .user-start-area { display: grid; grid-template-columns: minmax(300px, .88fr) minmax(0, 1.12fr); margin: 0; border: 1px solid #dce6f1; border-radius: 15px; box-shadow: var(--shadow); }
 .ops-live-user.is-overview .user-start-panel { min-width: 0; padding: 25px 27px; }
 .ops-live-user.is-overview .user-vehicle-title-row { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 17px; }

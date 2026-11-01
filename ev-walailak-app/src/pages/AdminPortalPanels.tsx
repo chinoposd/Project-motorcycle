@@ -39,8 +39,6 @@ export default function AdminPortalPanels({ isDemo, enhanced=false, refreshKey=0
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [settingsForm, setSettingsForm] = useState<PortalSettings>(isDemo ? demoSnapshot.settings : unavailableSnapshot.settings);
-  const [permissionId, setPermissionId] = useState('');
-  const [inductionConfirmed, setInductionConfirmed] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementBody, setAnnouncementBody] = useState('');
   const [announcementRolesForm, setAnnouncementRolesForm] = useState<AnnouncementRole[]>([...announcementRoles]);
@@ -141,12 +139,6 @@ export default function AdminPortalPanels({ isDemo, enhanced=false, refreshKey=0
     }, item.published ? 'ถอนประกาศแล้ว' : 'เผยแพร่ประกาศแล้ว');
   }
 
-  function requestPermission(id: string, previouslyConfirmed = false) {
-    if (!previouslyConfirmed && !inductionConfirmed) { onShowToast('ยืนยันก่อนว่าทีมงานตรวจแล้วว่าผู้ใช้ผ่านการแนะนำ'); return; }
-    void perform('set_driving_permission', { id, enabled: true, induction_confirmed: true, reason: 'ยืนยันการผ่านการแนะนำโดยทีมงาน' }, 'เปิด Driving Permission แล้ว');
-    setPermissionId(''); setInductionConfirmed(false);
-  }
-
   function reviewPrivacy(request: PrivacyRequest, status: 'InReview' | 'Completed' | 'Rejected') {
     const note = privacyNotes[request.id] ?? '';
     if (status !== 'InReview' && !note.trim()) { onShowToast('กรุณาบันทึกหมายเหตุการพิจารณาก่อนปิดคำขอ'); return; }
@@ -182,10 +174,10 @@ export default function AdminPortalPanels({ isDemo, enhanced=false, refreshKey=0
 
     <section className="panel admin-permission-panel" id="admin-driving-permission">
       <div className="panel-heading"><div className="heading-with-icon"><ShieldCheck size={17} /><h2>Driving Permission</h2></div><span className="panel-kicker">แยกจากอนุมัติบัญชี</span></div>
-      <p className="muted">ต้องยืนยันจากทีมงานว่าผู้ใช้ผ่านการแนะนำก่อนเปิดสิทธิ์ขับขี่</p>
+      <p className="muted">ให้สิทธิ์ขับผ่านหัวข้อคำขอสิทธิ์ขับรถ หลังทีมงานตรวจเอกสารและยืนยันการผ่านการแนะนำแล้ว</p>
       {snapshot.permission_accounts.length === 0 ? <div className="admin-list-state">{unavailable ? 'ยังโหลดบัญชี Approved ไม่ได้' : 'ไม่มีบัญชี Approved ที่รอจัดการสิทธิ์'}</div> : <div className="table-scroll"><table className="data-table"><thead><tr><th>ชื่อ / อีเมล</th><th>บทบาท</th><th>สถานะการแนะนำ</th><th>การดำเนินการ</th></tr></thead><tbody>
         {snapshot.permission_accounts.map((account) => <tr key={account.id}><td><strong>{account.name}</strong><span className="table-subtext">{account.email}</span></td><td>{account.role}</td><td>{account.induction_confirmed ? 'ยืนยันผ่านแล้ว' : 'ยังไม่ยืนยัน'}</td><td>
-          {account.driving_permission ? <button className="button button-small button-outline" type="button" disabled={formDisabled} onClick={() => { if (window.confirm('ยืนยันปิด Driving Permission ของบัญชีนี้?')) void perform('set_driving_permission', { id: account.id, enabled: false, reason: 'Admin ปิดสิทธิ์ขับขี่' }, 'ปิด Driving Permission แล้ว'); }}>ปิดสิทธิ์</button> : <div className="admin-inline-action"><label><input type="checkbox" checked={account.induction_confirmed || (permissionId === account.id && inductionConfirmed)} onChange={(event) => { setPermissionId(account.id); setInductionConfirmed(event.target.checked); }} disabled={formDisabled || account.induction_confirmed} /> {account.induction_confirmed ? 'ทีมงานยืนยันการแนะนำแล้ว' : 'ยืนยันว่าผ่านการแนะนำแล้ว'}</label><button className="button button-small button-primary" type="button" disabled={formDisabled || (!account.induction_confirmed && (permissionId !== account.id || !inductionConfirmed))} onClick={() => requestPermission(account.id, account.induction_confirmed)}>ให้สิทธิ์ขับ</button></div>}
+          {account.driving_permission ? <button className="button button-small button-outline" type="button" disabled={formDisabled} onClick={() => { if (window.confirm('ยืนยันปิด Driving Permission ของบัญชีนี้?')) void perform('set_driving_permission', { id: account.id, enabled: false, reason: 'Admin ปิดสิทธิ์ขับขี่' }, 'ปิด Driving Permission แล้ว'); }}>ปิดสิทธิ์</button> : <span className="muted">รอคำขอและตรวจเอกสาร</span>}
         </td></tr>)}
       </tbody></table></div>}
     </section>
