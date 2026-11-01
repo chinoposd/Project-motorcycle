@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Activity, AlertTriangle, Archive, BadgeCheck, Bell, Check, Clock3, FileClock, LoaderCircle, Megaphone, Save, ShieldCheck, UserRoundCheck } from 'lucide-react';
 import { loadAdminPortal, runAdminPortalAction, type AdminPortalSnapshot, type AnnouncementRole, type PortalAnnouncement, type PortalSettings, type PrivacyRequest } from '../auth/adminPortal';
+import { loadDrivingRequests, reviewDrivingRequest, type DrivingPermissionRequest } from '../features/operations/drivingPermissionRequests';
 
 interface AdminPortalPanelsProps { isDemo: boolean; enhanced?: boolean; refreshKey?:number; pendingAccountCount?: number | null; onShowToast: (message: string) => void; }
 const weekdays = [
@@ -38,6 +39,13 @@ export default function AdminPortalPanels({ isDemo, enhanced=false, refreshKey=0
   const [loading, setLoading] = useState(!isDemo);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [drivingRequests, setDrivingRequests] = useState<DrivingPermissionRequest[]>([]);
+  const [drivingRequestError, setDrivingRequestError] = useState('');
+  const [selectedReviewId, setSelectedReviewId] = useState('');
+  const [documentsVerified, setDocumentsVerified] = useState(false);
+  const [reviewInductionConfirmed, setReviewInductionConfirmed] = useState(false);
+  const [reviewReason, setReviewReason] = useState('');
+  const drivingReviewDialogRef = useRef<HTMLDialogElement>(null);
   const [settingsForm, setSettingsForm] = useState<PortalSettings>(isDemo ? demoSnapshot.settings : unavailableSnapshot.settings);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementBody, setAnnouncementBody] = useState('');
@@ -50,15 +58,18 @@ export default function AdminPortalPanels({ isDemo, enhanced=false, refreshKey=0
   const [privacyNotes, setPrivacyNotes] = useState<Record<string, string>>({});
   const [serviceReason, setServiceReason] = useState('');
   const snapshot = loadedSnapshot ?? unavailableSnapshot;
+  const selectedDrivingRequest = drivingRequests.find((request) => request.id === selectedReviewId && request.status === 'Pending');
   const unavailable = !isDemo && loadedSnapshot === null;
   const formDisabled = busy || loading || isDemo || unavailable;
 
   const refresh = useCallback(async () => {
     if (isDemo) { setLoadedSnapshot(demoSnapshot); setSettingsForm(demoSnapshot.settings); return; }
     setLoading(true); setError('');
-    const result = await loadAdminPortal();
+    const [result, requestResult] = await Promise.all([loadAdminPortal(), loadDrivingRequests()]);
     if (result.error !== null) { setError(result.error); setLoadedSnapshot(null); setSettingsForm(unavailableSnapshot.settings); }
     else if (result.data !== null) { setLoadedSnapshot(result.data); setSettingsForm(result.data.settings); }
+    setDrivingRequests(requestResult.data);
+    setDrivingRequestError(requestResult.error ?? '');
     setLoading(false);
   }, [isDemo]);
 
@@ -145,6 +156,31 @@ export default function AdminPortalPanels({ isDemo, enhanced=false, refreshKey=0
     void perform('review_privacy_request', { id: request.id, status, admin_note: note }, 'อัปเดตคำขอข้อมูลส่วนบุคคลแล้ว');
   }
 
+  function openDrivingReview(id: string) {
+    setSelectedReviewId(id);
+    setDocumentsVerified(false);
+    setReviewInductionConfirmed(false);
+    setReviewReason('');
+    setDrivingRequestError('');
+    if (!drivingReviewDialogRef.current?.open) drivingReviewDialogRef.current?.showModal();
+  }
+
+  async function approveDrivingReview(request: DrivingPermissionRequest) {
+    if (formDisabled || request.status !== 'Pending' || !documentsVerified || !reviewInductionConfirmed || reviewReason.trim().length < 5) return;
+    setBusy(true);
+    setDrivingRequestError('');
+    const failure = await reviewDrivingRequest(request.id, 'approve', reviewReason.trim(), true, true);
+    setBusy(false);
+    if (failure) { setDrivingRequestError(failure); return; }
+    drivingReviewDialogRef.current?.close();
+    setSelectedReviewId('');
+    setDocumentsVerified(false);
+    setReviewInductionConfirmed(false);
+    setReviewReason('');
+    onShowToast('อนุมัติคำขอและเปิด Driving Permission แล้ว');
+    await refresh();
+  }
+
   const permissionPending = snapshot.permission_accounts.filter((account) => !account.driving_permission).length;
   const summaryCards = [
     { label: 'บัญชีรอตรวจ', value: pendingAccountCount ?? (unavailable ? '—' : snapshot.pending_accounts), icon: <UserRoundCheck size={17} /> },
@@ -175,11 +211,27 @@ export default function AdminPortalPanels({ isDemo, enhanced=false, refreshKey=0
     <section className="panel admin-permission-panel" id="admin-driving-permission">
       <div className="panel-heading"><div className="heading-with-icon"><ShieldCheck size={17} /><h2>Driving Permission</h2></div><span className="panel-kicker">แยกจากอนุมัติบัญชี</span></div>
       <p className="muted">ให้สิทธิ์ขับผ่านหัวข้อคำขอสิทธิ์ขับรถ หลังทีมงานตรวจเอกสารและยืนยันการผ่านการแนะนำแล้ว</p>
+      {drivingRequestError && <div className="admin-feedback error" role="alert">{drivingRequestError}</div>}
       {snapshot.permission_accounts.length === 0 ? <div className="admin-list-state">{unavailable ? 'ยังโหลดบัญชี Approved ไม่ได้' : 'ไม่มีบัญชี Approved ที่รอจัดการสิทธิ์'}</div> : <div className="table-scroll"><table className="data-table"><thead><tr><th>ชื่อ / อีเมล</th><th>บทบาท</th><th>สถานะการแนะนำ</th><th>การดำเนินการ</th></tr></thead><tbody>
         {snapshot.permission_accounts.map((account) => <tr key={account.id}><td><strong>{account.name}</strong><span className="table-subtext">{account.email}</span></td><td>{account.role}</td><td>{account.induction_confirmed ? 'ยืนยันผ่านแล้ว' : 'ยังไม่ยืนยัน'}</td><td>
-          {account.driving_permission ? <button className="button button-small button-outline" type="button" disabled={formDisabled} onClick={() => { if (window.confirm('ยืนยันปิด Driving Permission ของบัญชีนี้?')) void perform('set_driving_permission', { id: account.id, enabled: false, reason: 'Admin ปิดสิทธิ์ขับขี่' }, 'ปิด Driving Permission แล้ว'); }}>ปิดสิทธิ์</button> : <span className="muted">รอคำขอและตรวจเอกสาร</span>}
+          {account.driving_permission ? <button className="button button-small button-outline" type="button" disabled={formDisabled} onClick={() => { if (window.confirm('ยืนยันปิด Driving Permission ของบัญชีนี้?')) void perform('set_driving_permission', { id: account.id, enabled: false, reason: 'Admin ปิดสิทธิ์ขับขี่' }, 'ปิด Driving Permission แล้ว'); }}>ปิดสิทธิ์</button> : (() => {
+            const request = drivingRequests.find((item) => item.user_id === account.id && item.status === 'Pending');
+            if (!request) return <span className="muted">{drivingRequestError ? 'โหลดคำขอไม่ได้' : 'รอคำขอและตรวจเอกสาร'}</span>;
+            return <button className="button button-small button-primary" type="button" disabled={formDisabled} onClick={() => openDrivingReview(request.id)}>ตรวจและอนุมัติ</button>;
+          })()}
         </td></tr>)}
       </tbody></table></div>}
+      <dialog ref={drivingReviewDialogRef} className="admin-driving-review-dialog" aria-labelledby="driving-review-title" onCancel={(event) => { if (busy) event.preventDefault(); }} onClose={() => setSelectedReviewId('')}>
+        {selectedDrivingRequest && <div className="admin-driving-review-form">
+          <div className="panel-heading"><div><h3 id="driving-review-title">ตรวจและอนุมัติสิทธิ์ขับ</h3><p className="muted">{selectedDrivingRequest.user_name || 'บัญชีผู้ใช้'} · {selectedDrivingRequest.role || 'ผู้ขับ'}</p></div><button className="button button-outline button-small" type="button" disabled={busy} onClick={() => drivingReviewDialogRef.current?.close()}>ปิด</button></div>
+          <p className="muted">ตรวจเอกสารที่ทีมงานได้รับจริงก่อนยืนยัน</p>
+          {drivingRequestError && <div className="admin-feedback error" role="alert">{drivingRequestError}</div>}
+          <label><input type="checkbox" checked={documentsVerified} onChange={(event) => setDocumentsVerified(event.target.checked)} disabled={formDisabled} />ตรวจเอกสารการขับรถแล้ว</label>
+          <label><input type="checkbox" checked={reviewInductionConfirmed} onChange={(event) => setReviewInductionConfirmed(event.target.checked)} disabled={formDisabled} />ทีมงานยืนยันการแนะนำแล้ว</label>
+          <label className="admin-driving-review-reason">เหตุผลการอนุมัติ<textarea rows={2} minLength={5} maxLength={1000} value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} disabled={formDisabled} /></label>
+          <button className="button button-small button-primary" type="button" disabled={formDisabled || !documentsVerified || !reviewInductionConfirmed || reviewReason.trim().length < 5} onClick={() => void approveDrivingReview(selectedDrivingRequest)}>{busy ? 'กำลังอนุมัติ…' : 'อนุมัติสิทธิ์ขับ'}</button>
+        </div>}
+      </dialog>
     </section>
 
     <section className="panel admin-settings-panel" id="admin-session-settings">
