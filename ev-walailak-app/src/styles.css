@@ -97,6 +97,14 @@ svg { flex: none; }
 .admin-permission-panel > .muted, .admin-privacy-panel > .muted { margin: -6px 0 12px; }
 .admin-inline-action { display: grid; gap: 7px; justify-items: start; }
 .admin-inline-action label { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.admin-driving-review-dialog { position: fixed; inset: 0; width: min(420px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; margin: auto; overflow: auto; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: var(--paper); box-shadow: 0 24px 80px rgba(12, 37, 63, .3); }
+.admin-driving-review-dialog::backdrop { background: rgba(8, 27, 48, .58); backdrop-filter: blur(3px); }
+.admin-driving-review-form { display: grid; gap: 12px; width: 100%; padding: 20px; background: var(--paper); }
+.admin-driving-review-form p { margin: 0; }
+.admin-driving-review-form > label:not(.admin-driving-review-reason) { display: flex; align-items: center; gap: 8px; }
+.admin-driving-review-form input[type="checkbox"] { width: auto; min-height: auto; }
+.admin-driving-review-form .admin-driving-review-reason { display: grid; gap: 5px; }
+.admin-driving-review-form textarea { width: 100%; min-height: 60px; padding: 7px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
 .admin-settings-panel .admin-portal-form, .admin-portal-form { display: grid; gap: 13px; }
 .admin-form-section { display: grid; gap: 8px; }
 .admin-form-section h3 { margin: 0; font-size: 13px; }
