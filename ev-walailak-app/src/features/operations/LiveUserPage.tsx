@@ -19,6 +19,7 @@ import PageHeader from '../../components/PageHeader';
 import OperationForm from './OperationForm';
 import ZonePreview from './ZonePreview';
 import { displayTime } from './client';
+import DrivingPermissionRequestPanel from './DrivingPermissionRequestPanel';
 import type { MyOperations, UserNotice } from './types';
 import VehicleLiveMap from './VehicleLiveMap';
 
@@ -219,7 +220,8 @@ export default function LiveUserPage({
           <article className={drivingPermission ? 'is-ready' : 'is-blocked'}>
             <span className="user-eligibility-icon" aria-hidden="true"><ShieldCheck size={21} /></span>
             <div><span>Driving Permission</span><strong>{drivingPermission ? <><CheckCircle2 size={17} /> ได้รับสิทธิ์ขับ</> : 'ยังไม่ได้รับสิทธิ์ขับ'}</strong>
-              {!drivingPermission && <small>ต้องผ่านการแนะนำและให้ผู้ดูแลเปิดสิทธิ์</small>}</div>
+              {!drivingPermission && <small>ต้องผ่านการแนะนำและให้ผู้ดูแลเปิดสิทธิ์</small>}
+              <DrivingPermissionRequestPanel userId={user.id} approved={accountApproved} permitted={drivingPermission} /></div>
           </article>
         </section>
 

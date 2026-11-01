@@ -4,6 +4,7 @@ import {bangkokDay} from './client';
 import {useOperations} from './useOperations';
 import OperationalOverview,{DailyReport} from './OperationalOverview';
 import AccountOperations from './AccountOperations';
+import DrivingPermissionRequestsAdmin from './DrivingPermissionRequestsAdmin';
 import OperationalReviews from './OperationalReviews';
 import ZoneContactSettings from './ZoneContactSettings';
 import PrivacyOperations from './PrivacyOperations';
@@ -35,7 +36,7 @@ export default function AdminWorkspace({isDemo,accounts,settings,onShowToast,onC
     {state.error&&<div className="admin-feedback error" role="alert"><span>{state.error}</span><button className="text-button" type="button" onClick={()=>void state.refresh()}><RefreshCw size={14}/>โหลดใหม่</button></div>}
     {state.loading&&!state.data&&<p role="status" className="muted">กำลังโหลดข้อมูล Adminx3…</p>}
     <section id="ops-view-overview" className="ops-workspace-view" role="tabpanel" aria-labelledby="ops-tab-overview" tabIndex={0} hidden={tab!=='overview'}><OperationalOverview data={state.data} disabled={state.disabled} run={state.run} refresh={state.refresh}/><DailyReport data={state.data} date={date} onDateChange={setDate}/></section>
-    <section id="ops-view-accounts" className="ops-workspace-view" role="tabpanel" aria-labelledby="ops-tab-accounts" tabIndex={0} hidden={tab!=='accounts'}>{accounts}<AccountOperations data={state.data} disabled={state.disabled} run={state.run}/></section>
+    <section id="ops-view-accounts" className="ops-workspace-view" role="tabpanel" aria-labelledby="ops-tab-accounts" tabIndex={0} hidden={tab!=='accounts'}>{accounts}{!isDemo && <DrivingPermissionRequestsAdmin onChanged={onChanged}/>}<AccountOperations data={state.data} disabled={state.disabled} run={state.run}/></section>
     <section id="ops-view-operations" className="ops-workspace-view" role="tabpanel" aria-labelledby="ops-tab-operations" tabIndex={0} hidden={tab!=='operations'}><OperationalReviews data={state.data} disabled={state.disabled} run={state.run}/></section>
     <section id="ops-view-zones" className="ops-workspace-view" role="tabpanel" aria-labelledby="ops-tab-zones" tabIndex={0} hidden={tab!=='zones'}><ZoneContactSettings data={state.data} disabled={state.disabled} run={state.run}/></section>
     <section id="ops-view-privacy" className="ops-workspace-view" role="tabpanel" aria-labelledby="ops-tab-privacy" tabIndex={0} hidden={tab!=='privacy'}><PrivacyOperations data={state.data} disabled={state.disabled} run={state.run}/></section>

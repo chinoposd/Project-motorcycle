@@ -64,6 +64,11 @@ export interface Database {
       admin_operations_action: { Args: { p_action: string; p_payload: Json }; Returns: Json };
       my_operations_snapshot: { Args: Record<PropertyKey, never>; Returns: Json };
       user_operations_action: { Args: { p_action: string; p_payload: Json }; Returns: Json };
+      my_driving_permission_request: { Args: Record<PropertyKey, never>; Returns: Json };
+      request_driving_permission: { Args: Record<PropertyKey, never>; Returns: Json };
+      cancel_driving_permission_request: { Args: Record<PropertyKey, never>; Returns: Json };
+      admin_driving_permission_requests: { Args: Record<PropertyKey, never>; Returns: Json };
+      admin_review_driving_permission_request: { Args: { p_request_id: string; p_decision: string; p_reason: string; p_induction_confirmed: boolean; p_documents_verified: boolean }; Returns: Json };
       request_web_session: { Args: { p_inspection_confirmed: boolean; p_terms_confirmed: boolean; p_request_id: string }; Returns: Json };
       session_owner_action: { Args: { p_session_id: string; p_action: string }; Returns: Json };
       admin_list_accounts: {
